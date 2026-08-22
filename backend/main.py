@@ -38,19 +38,27 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─── GCP Multi-Lingual Clients (optional — degrade gracefully) ────────────────
-try:
-    from google.cloud import speech as gcs_speech
-    from google.cloud import translate_v2 as gcs_translate
-    from google.cloud import texttospeech as gcs_tts
-    _GCP_LINGUAL_READY = True
-    logger = logging.getLogger("bhramari")
-    logger.info("✅ Google Cloud Speech/Translate/TTS clients loaded")
-except ImportError:
-    _GCP_LINGUAL_READY = False
-    import logging as _logging
-    _logging.basicConfig(level=logging.INFO)
-    logger = _logging.getLogger("bhramari")
-    logger.warning("⚠️  Google Cloud multi-lingual SDK not installed — using demo mode")
+# GCP Lingual SDKs — loaded lazily only when needed
+_gcs_speech = None
+_gcs_translate = None
+_gcs_tts = None
+
+def _load_gcp_lingual():
+    global _gcs_speech, _gcs_translate, _gcs_tts
+    if _gcs_speech is not None:
+        return _GCP_LINGUAL_READY
+    try:
+        from google.cloud import speech as gcs_speech
+        from google.cloud import translate_v2 as gcs_translate
+        from google.cloud import texttospeech as gcs_tts
+        _GCP_LINGUAL_READY = True
+        logger.info("✅ GCP Speech/Translate/TTS ready")
+    except ImportError:
+        _GCP_LINGUAL_READY = False
+        logger.warning("⚠️  GCP lingual SDK not installed — using demo mode")
+    return _GCP_LINGUAL_READY
+
+_GCP_LINGUAL_READY = False
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bhramari.db")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 JWT_SECRET = os.getenv("JWT_SECRET", "bhramari-dev-secret-change-me")
@@ -652,8 +660,9 @@ async def transcribe_voice(
     """Transcribe voice prompt using Cloud Speech-to-Text (real GCP API)."""
     audio_bytes = await audio_file.read()
 
-    if _GCP_LINGUAL_READY:
+    if _load_gcp_lingual():
         try:
+            import google.cloud.speech as gcs_speech
             client = gcs_speech.SpeechClient()
             audio = gcs_speech.RecognitionAudio(content=audio_bytes)
             config = gcs_speech.RecognitionConfig(
@@ -695,7 +704,7 @@ async def voice_review(
     audio_bytes = await audio_file.read()
     if _GCP_LINGUAL_READY:
         try:
-            stt_client = gcs_speech.SpeechClient()
+            import google.cloud.speech as gcs_speech; stt_client = gcs_speech.SpeechClient()
             audio = gcs_speech.RecognitionAudio(content=audio_bytes)
             config = gcs_speech.RecognitionConfig(
                 encoding=gcs_speech.RecognitionConfig.AudioEncoding.LINEAR16,
@@ -719,7 +728,7 @@ async def voice_review(
     english_text = transcription
     if language != "en" and _GCP_LINGUAL_READY:
         try:
-            tx_client = gcs_translate.Client()
+            import google.cloud.translate_v2 as gcs_translate; tx_client = gcs_translate.Client()
             result = tx_client.translate(transcription, target_language="en", source_language=language)
             english_text = result["translatedText"]
         except Exception as e:
@@ -739,7 +748,7 @@ async def voice_review(
     tts_url = None
     if _GCP_LINGUAL_READY:
         try:
-            tts_client = gcs_tts.TextToSpeechClient()
+            import google.cloud.texttospeech as gcs_tts; tts_client = gcs_tts.TextToSpeechClient()
             synthesis_input = gcs_tts.SynthesisInput(text=narration_text)
             voice = gcs_tts.VoiceSelectionParams(
                 language_code=language if language != "en" else "en-US",
@@ -750,8 +759,8 @@ async def voice_review(
                 input=synthesis_input, voice=voice, audio_config=config
             )
             # Store TTS audio in GCS for playback
-            from google.cloud import storage
-            gcs_client = storage.Client()
+            import google.cloud.storage as gcs_storage
+            gcs_client = gcs_storage.Client()
             bucket = gcs_client.bucket(os.getenv("TTS_BUCKET", "bhramari-tts"))
             blob = bucket.blob(f"narrations/{secrets.token_hex(8)}.mp3")
             blob.upload_from_string(response.audio_content, content_type="audio/mpeg")
