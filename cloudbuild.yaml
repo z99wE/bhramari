@@ -1,0 +1,90 @@
+steps:
+  # ─── Auth & setup ─────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'auth'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud auth configure-docker us-docker.pkg.dev --quiet
+
+  # ─── Run tests ────────────────────────────────────────────────────────────
+  - name: 'python:3.11-slim'
+    id: 'run-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r backend/requirements.txt >/dev/null 2>&1
+        cd backend
+        python3 -c "import main; print('✅ Backend imports OK')"
+    volumes:
+      - name: 'src'
+        path: /workspace
+
+  # ─── Build frontend ───────────────────────────────────────────────────────
+  - name: 'node:20-alpine'
+    id: 'build-frontend'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd frontend
+        npm ci --silent
+        npm run build -- --emptyOutDir
+        echo "✅ Frontend built"
+    volumes:
+      - name: 'src'
+        path: /workspace
+
+  # ─── Build Docker image ────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:$COMMIT_SHA'
+      - '-t'
+      - 'us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:latest'
+      - '--build-arg'
+      - 'GIT_COMMIT=$COMMIT_SHA'
+      - '.'
+    waitFor: ['run-tests', 'build-frontend']
+
+  # ─── Push to Artifact Registry ────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args: ['push', 'us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api']
+    waitFor: ['build-image']
+
+  # ─── Deploy to Cloud Run ───────────────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'deploy'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bhramari-api'
+      - '--image'
+      - 'us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'DATABASE_URL=${_DATABASE_URL},REDIS_URL=${_REDIS_URL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID}'
+      - '--service-account'
+      - '${_SERVICE_ACCOUNT}'
+    waitFor: ['push-image']
+
+images:
+  - 'us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:$COMMIT_SHA'
+  - 'us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:latest'
+
+substitutions:
+  _REGION: 'us-central1'
+  _DATABASE_URL: 'postgresql://postgres:YOUR_DB_PASS@/${_INSTANCE_CONN}/bhramari'
+  _REDIS_URL: 'rediss://YOUR_REDIS_HOST:6379'
+  _INSTANCE_CONN: 'bhramari-db:us-central1:bhramari-db'
+  _SERVICE_ACCOUNT: 'bhramari-sa@${PROJECT_ID}.iam.gserviceaccount.com'
