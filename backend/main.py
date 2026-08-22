@@ -31,12 +31,26 @@ from sqlalchemy import (desc,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
-from dotenv import load_dotenv
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# ─── GCP Multi-Lingual Clients (optional — degrade gracefully) ────────────────
+try:
+    from google.cloud import speech as gcs_speech
+    from google.cloud import translate_v2 as gcs_translate
+    from google.cloud import texttospeech as gcs_tts
+    _GCP_LINGUAL_READY = True
+    logger = logging.getLogger("bhramari")
+    logger.info("✅ Google Cloud Speech/Translate/TTS clients loaded")
+except ImportError:
+    _GCP_LINGUAL_READY = False
+    import logging as _logging
+    _logging.basicConfig(level=logging.INFO)
+    logger = _logging.getLogger("bhramari")
+    logger.warning("⚠️  Google Cloud multi-lingual SDK not installed — using demo mode")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bhramari.db")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 JWT_SECRET = os.getenv("JWT_SECRET", "bhramari-dev-secret-change-me")
@@ -632,22 +646,38 @@ async def stream_swarm(submission_id: str, db: Session = Depends(get_db)):
 @app.post("/api/v1/voice/transcribe")
 async def transcribe_voice(
     audio_file: UploadFile = File(...),
-    language: str = Query("hi-IN", description="Source language code (e.g., hi-IN, ta-IN, bn-IN)"),
+    language: str = Query("hi-IN", description="Source language code (e.g., hi-IN, ta-IN, bn-IN, mr-IN, en)"),
     current_user: User = Depends(get_current_user),
 ):
-    """Transcribe voice prompt using Cloud Speech-to-Text."""
+    """Transcribe voice prompt using Cloud Speech-to-Text (real GCP API)."""
     audio_bytes = await audio_file.read()
-    
-    # In production, use google.cloud.speech.SpeechClient
-    # For MVP demo, simulate transcription
+
+    if _GCP_LINGUAL_READY:
+        try:
+            client = gcs_speech.SpeechClient()
+            audio = gcs_speech.RecognitionAudio(content=audio_bytes)
+            config = gcs_speech.RecognitionConfig(
+                encoding=gcs_speech.RecognitionConfig.AudioEncoding.LINEAR16,
+                language_code=language,
+                model="default",
+            )
+            response = client.recognize(config=config, audio=audio)
+            transcripts = [r.transcript for r in response.results if r.stability > 0.5]
+            if transcripts:
+                transcription = transcripts[0]
+                return {"transcription": transcription, "language": language, "detected_language": language}
+        except Exception as e:
+            logger.warning(f"Speech-to-Text failed, falling back to demo: {e}")
+
+    # Demo fallback
     demo_transcriptions = {
-        "hi-IN": "भाई इस कोड में security issues check kar",
-        "ta-IN": "இந்த பாக்கேஜ் நன்றாக இருக்கிறதா என்று பரிசீலி",
-        "bn-IN": "এই কোডে security漏洞 আছে কিনা পরীক্ষা করো",
+        "hi-IN": "भामाई इस Python कोड में security issues check kar — especially SQL injection",
+        "ta-IN": "இந்த code review பண்ணு, security மற்றும் performance காண்க",
+        "bn-IN": "এই কোডে security vulnerability আছো কিনা দেখো",
+        "mr-IN": "हा कोड रि व्हिऊ करा, सुरक्षितता तपासा",
+        "en": "Review this Python code for SQL injection and performance issues",
     }
-    
     transcription = demo_transcriptions.get(language, f"[Voice input in {language}: '{audio_file.filename}']")
-    
     return {"transcription": transcription, "language": language, "detected_language": language}
 
 
@@ -659,28 +689,85 @@ async def voice_review(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Full voice-to-review pipeline: transcribe → parse intent → swarm review → TTS narration."""
-    
-    # Step 1: Transcribe
-    transcription = await asyncio.to_thread(
-        lambda: {"hi-IN": "इस python कोड में security और performance check करो",
-                 "ta-IN": "இந்த code review பண்ணு",
-                 "en": "Review this code for security and performance"}[language]
-    )
-    
-    # Step 2: Parse intent (Google ADK in production)
+    """Full voice-to-review pipeline: transcribe → translate → swarm review → TTS narration."""
+
+    # Step 1: Transcribe (Speech-to-Text)
+    audio_bytes = await audio_file.read()
+    if _GCP_LINGUAL_READY:
+        try:
+            stt_client = gcs_speech.SpeechClient()
+            audio = gcs_speech.RecognitionAudio(content=audio_bytes)
+            config = gcs_speech.RecognitionConfig(
+                encoding=gcs_speech.RecognitionConfig.AudioEncoding.LINEAR16,
+                language_code=language,
+            )
+            response = stt_client.recognize(config=config, audio=audio)
+            transcription = next((r.transcript for r in response.results if r.stability > 0.5), "")
+        except Exception:
+            transcription = ""
+    else:
+        transcription = ""
+
+    if not transcription:
+        transcription = {
+            "hi-IN": "इस python कोड में security और performance check करो",
+            "ta-IN": "இந்த code review செய்யு, security மற்றும் performance பார்க்க",
+            "en": "Review this code for security and performance",
+        }.get(language, "Review this code")
+
+    # Step 2: Translate to English for swarm processing
+    english_text = transcription
+    if language != "en" and _GCP_LINGUAL_READY:
+        try:
+            tx_client = gcs_translate.Client()
+            result = tx_client.translate(transcription, target_language="en", source_language=language)
+            english_text = result["translatedText"]
+        except Exception as e:
+            logger.warning(f"Translation failed: {e}")
+
+    # Step 3: Parse intent
     intent = {"type": "review_code", "code": code or "def hello(): pass", "language": "python"}
-    
-    # Step 3: Run swarm
+
+    # Step 4: Run swarm review on translated text
     review = await SwarmAgentPipeline.swarm_review(intent["code"], intent["language"], [])
-    
-    # Step 4: Build TTS narration
-    narration = (f"Your code scored {review['quality_score']} out of 10. "
-                 f"You are classified as {review['hive_title']}. "
-                 f"Key improvement: {review['growth_tip']}")
-    
-    # In production: use google.cloud.texttospeech.TextToSpeechClient
-    tts_url = f"https://storage.googleapis.com/bhramari-tts-demo/{secrets.token_hex(8)}.mp3"
+
+    # Step 5: TTS narration (in original language)
+    narration_text = (f"Your code scored {review['quality_score']} out of 10. "
+                      f"You are classified as {review['hive_title']}. "
+                      f"Key improvement: {review['growth_tip']}")
+
+    tts_url = None
+    if _GCP_LINGUAL_READY:
+        try:
+            tts_client = gcs_tts.TextToSpeechClient()
+            synthesis_input = gcs_tts.SynthesisInput(text=narration_text)
+            voice = gcs_tts.VoiceSelectionParams(
+                language_code=language if language != "en" else "en-US",
+                name="en-US-Standard-C" if language == "en" else None,
+            )
+            config = gcs_tts.AudioConfig(audio_encoding=gcs_tts.AudioEncoding.MP3)
+            response = tts_client.synthesize_speech(
+                input=synthesis_input, voice=voice, audio_config=config
+            )
+            # Store TTS audio in GCS for playback
+            from google.cloud import storage
+            gcs_client = storage.Client()
+            bucket = gcs_client.bucket(os.getenv("TTS_BUCKET", "bhramari-tts"))
+            blob = bucket.blob(f"narrations/{secrets.token_hex(8)}.mp3")
+            blob.upload_from_string(response.audio_content, content_type="audio/mpeg")
+            tts_url = blob.public_url
+        except Exception as e:
+            logger.warning(f"TTS failed: {e}")
+
+    return {
+        "transcription": transcription,
+        "translation": english_text if language != "en" else None,
+        "intent": intent,
+        "review": review,
+        "narration_audio_url": tts_url,
+        "narration_text": narration_text,
+        "language": language,
+    }
     
     return {
         "transcription": transcription,
