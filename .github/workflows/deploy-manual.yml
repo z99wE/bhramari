@@ -1,0 +1,78 @@
+name: 🐝 Bhramari — Deploy to Cloud Run (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'GCP Region'
+        required: false
+        default: 'us-central1'
+        type: choice
+        options:
+          - us-central1
+          - us-east1
+          - asia-south1
+          - europe-west1
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'gcp-apac-501407' }}
+  REGION: ${{ github.event.inputs.region || 'us-central1' }}
+  SERVICE_NAME: bhramari-api
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
+
+      - name: Create Artifact Registry
+        run: |
+          gcloud artifacts repositories create bhramari-repo \
+            --repository-format=docker \
+            --location=$REGION \
+            --project=$PROJECT_ID \
+            2>/dev/null || echo "Repo already exists"
+
+      - name: Build Docker image
+        run: docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:${{ github.sha }} .
+
+      - name: Push to Artifact Registry
+        run: |
+          docker tag $REGION-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:${{ github.sha }} \
+            us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:${{ github.sha }}
+          docker push us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image us-docker.pkg.dev/$PROJECT_ID/bhramari-repo/bhramari-api:${{ github.sha }} \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars \
+              GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
+              JWT_SECRET=${{ secrets.JWT_SECRET }}
+
+      - name: Output URL
+        run: |
+          URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --format='value(status.url)')
+          echo "✅ Bhramari deployed!"
+          echo "🌐 URL: $URL"
+          echo "📊 Admin: $URL/docs"

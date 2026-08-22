@@ -1,0 +1,102 @@
+name: 🐝 Bhramari — Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger button in GitHub UI
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'gcp-apac-501407' }}
+  REGION: us-central1
+  SERVICE_NAME: bhramari-api
+  DOCKER_FILE: Dockerfile
+
+jobs:
+  # ─── Build & Test ───────────────────────────────────────────────────────
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Verify imports
+        run: python -c "import sys; sys.path.insert(0,'backend'); import main; print('✅ Backend OK')"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      - name: Type check frontend
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Build frontend
+        run: cd frontend && npm run build -- --emptyOutDir
+
+  # ─── Deploy to Cloud Run ────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Cloud Run
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # For Workload Identity
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate to GCP using Workload Identity (no service account key needed)
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: '>= 480.0.0'
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
+
+      # Build multi-stage Docker image
+      - name: Build & Push Docker Image
+        run: |
+          IMAGE_TAG="us-docker.pkg.dev/${{ env.PROJECT_ID }}/bhramari-repo/bhramari-api:${{ github.sha }}"
+          docker build -t "$IMAGE_TAG" -f Dockerfile .
+          docker push "$IMAGE_TAG"
+
+      # Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image "us-docker.pkg.dev/${{ env.PROJECT_ID }}/bhramari-repo/bhramari-api:${{ github.sha }}" \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars \
+              GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }},\
+              JWT_SECRET=${{ secrets.JWT_SECRET }},\
+              DATABASE_URL=${{ secrets.DATABASE_URL }},\
+              REDIS_URL=${{ secrets.REDIS_URL }}
+
+      # Output the deployed URL
+      - name: Show deployed URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "🚀 Bhramari deployed: $URL"
+          echo "DEPLOYED_URL=$URL" >> $GITHUB_ENV
