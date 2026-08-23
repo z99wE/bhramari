@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/main.py .
 COPY backend/database.py .
-COPY --from=frontend-builder /app/frontend/dist ./static
+COPY --from=frontend-builder /app/dist ./static
 
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
