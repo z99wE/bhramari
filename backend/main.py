@@ -474,6 +474,14 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"DB init skipped (will create on first request): {e}")
 
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+# Serve frontend static files
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
+
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 
