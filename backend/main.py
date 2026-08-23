@@ -39,7 +39,9 @@ load_dotenv()
 
 # All GCP features use demo mode (no heavy SDKs needed)
 _GCP_LINGUAL_READY = False
-logger.info("✅ Bhramari API starting (demo mode)")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("bhramari")
+logger.info("Bhramari API starting (demo mode)")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bhramari.db")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 JWT_SECRET = os.getenv("JWT_SECRET", "bhramari-dev-secret-change-me")
