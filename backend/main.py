@@ -24,7 +24,7 @@ from fastapi import (
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, ConfigDict
 from sqlalchemy import (desc, 
     create_engine, Column, String, Integer, Float, Text, DateTime,
     JSON, ForeignKey, func, select
@@ -148,13 +148,15 @@ class UserCreate(BaseModel):
     username: str
     display_name: Optional[str] = None
     
-    @validator('email')
-    def validate_email(cls, v):
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
         if '@' not in v: raise ValueError('Invalid email')
         return v.lower()
     
-    @validator('username')
-    def validate_username(cls, v):
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
         if not re.match(r'^[a-zA-Z0-9_-]{3,30}$', v):
             raise ValueError('3-30 alphanumeric chars only')
         return v.lower()
@@ -164,7 +166,7 @@ class UserResponse(BaseModel):
     id: str; email: str; username: str; display_name: Optional[str]
     swarm_level: int; nectar_points: int; xp: int
     reputation_score: float; streak_count: int; spiral_level: int; created_at: datetime
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SubmissionCreate(BaseModel):
@@ -178,16 +180,18 @@ class SubmissionCreate(BaseModel):
     voice_prompt: Optional[str] = None
     voice_language: Optional[str] = None
     
-    @validator('source_language')
-    def validate_lang(cls, v):
+    @field_validator('source_language')
+    @classmethod
+    def validate_lang(cls, v: str) -> str:
         supported = {'python','javascript','typescript','go','rust','java','csharp',
                      'ruby','php','swift','kotlin','dart','bash','scala'}
         if v.lower() not in supported:
             raise ValueError(f'Supported: {sorted(supported)}')
         return v.lower()
     
-    @validator('content')
-    def validate_content(cls, v):
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str) -> str:
         if len(v) > 100000: raise ValueError('Max 100KB')
         if not v.strip(): raise ValueError('Code cannot be empty')
         return v
@@ -210,7 +214,7 @@ class SubmissionResponse(BaseModel):
     patterns_matched: Optional[List[Dict]] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
-    class Config: from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeaderboardEntry(BaseModel):

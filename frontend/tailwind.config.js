@@ -8,13 +8,13 @@ export default {
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
-        hive: {
-          amber: '#f59e0b',
-          cyan: '#06b6d4',
-          purple: '#8b5cf6',
-          dark: '#0a0a0f',
-          surface: '#12121a',
-          card: '#1a1a2e',
+        claude: {
+          accent: '#d97757', // Warm orange/terracotta
+          bg: '#f2efe9', // Beige/off-white background
+          surface: '#e6e1d6', // Slightly darker beige for cards/surfaces
+          text: '#4a4138', // Clay style text
+          muted: '#8c8072', // Muted text
+          border: '#d1caba', // Subtle border
         }
       },
       animation: {

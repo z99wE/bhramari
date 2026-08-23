@@ -59,23 +59,25 @@ export default function App() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 pb-20">
         {/* Tab Navigation */}
-        <div className="flex gap-1 mt-6 mb-8 p-1 rounded-xl bg-white/5 border border-white/10 w-fit">
+        <div className="flex gap-1 mt-6 mb-8 p-1 rounded-xl bg-claude-surface border border-claude-border w-fit">
           <button
+            aria-label="Code Review Tab"
             onClick={() => setActiveTab('review')}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'review'
-                ? 'bg-gradient-to-r from-amber-600 to-cyan-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-claude-accent text-[#f2efe9] shadow-lg'
+                : 'text-claude-muted hover:text-claude-text'
             }`}
           >
             🐝 Code Review
           </button>
           <button
+            aria-label="Colony Tab"
             onClick={() => setActiveTab('colony')}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
               activeTab === 'colony'
-                ? 'bg-gradient-to-r from-amber-600 to-cyan-600 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-claude-accent text-[#f2efe9] shadow-lg'
+                : 'text-claude-muted hover:text-claude-text'
             }`}
           >
             🏛️ Colony
@@ -142,20 +144,20 @@ export default function App() {
                     { label: 'Languages Supported', value: '13+', icon: '🌍' },
                     { label: 'Agents Active', value: '5', icon: '🤖' },
                   ].map((stat, i) => (
-                    <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                    <div key={i} className="p-4 rounded-xl bg-claude-surface border border-claude-border text-center">
                       <div className="text-2xl mb-1">{stat.icon}</div>
                       <div className="text-2xl font-black neon-text">{stat.value}</div>
-                      <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+                      <div className="text-xs text-claude-muted mt-1">{stat.label}</div>
                     </div>
                   ))}
                 </div>
 
                 {/* Architecture badges */}
                 <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-3">GCP Architecture</p>
+                  <p className="text-xs text-claude-muted font-medium uppercase tracking-wider mb-3">GCP Architecture</p>
                   <div className="flex flex-wrap gap-2">
                     {['Cloud Run', 'Vertex AI', 'Pub/Sub', 'Cloud SQL', 'Memorystore', 'Cloud Tasks', 'Cloud CDN', 'Secret Manager'].map((svc) => (
-                      <span key={svc} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-400">
+                      <span key={svc} className="px-2.5 py-1 rounded-full bg-claude-surface border border-claude-border text-xs text-claude-muted">
                         {svc}
                       </span>
                     ))}
