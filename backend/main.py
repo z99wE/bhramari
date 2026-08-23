@@ -476,8 +476,6 @@ from pathlib import Path
 
 # Serve frontend static files
 STATIC_DIR = Path(__file__).parent / "static"
-if STATIC_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
@@ -888,6 +886,9 @@ async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
                    for s in submissions[:5]]
     }
 
+
+if STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
