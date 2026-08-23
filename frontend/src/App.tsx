@@ -7,6 +7,7 @@ import { Hero } from './components/Hero'
 import { SwarmStream } from './components/SwarmStream'
 import { ResultsPanel } from './components/ResultsPanel'
 import { LeaderboardPanel } from './components/LeaderboardPanel'
+
 import { GlassCard, SectionHeader } from './components/GlassCard'
 import { HealthIndicator } from './components/HealthIndicator'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -14,7 +15,10 @@ import { TerminalWindow, UsersThree, FileText, Brain, Globe, Robot, ChartBar, St
 
 type Language = 'python' | 'javascript' | 'go' | 'rust' | 'java'
 
+
+
 export default function App() {
+
   const [code, setCode] = useState('')
   const [language, setLanguage] = useState<Language>('python')
   const [targetLanguage, setTargetLanguage] = useState('en')
@@ -84,8 +88,8 @@ export default function App() {
   }, [submissionId, submission])
 
   return (
-    <div className="min-h-screen relative">
-      <div className="honeycomb-bg" />
+        <div className="min-h-screen relative">
+          <div className="honeycomb-bg" />
 
       <Header />
 
@@ -253,6 +257,6 @@ export default function App() {
       </footer>
 
       <HealthIndicator />
-    </div>
+        </div>
   )
 }
