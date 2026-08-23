@@ -277,7 +277,7 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
       {/* 7-Domain Scorecard (Honeypot Meter) */}
       <div className="mb-6 pt-5 border-t border-bespoke-border">
         <h4 className="font-semibold mb-4 text-sm text-bespoke-text flex items-center gap-2">
-          <ShieldCheck size={20} className="text-bespoke-accent" weight="duotone" /> Soloknuckle 7-Domain Scorecard
+          <ShieldCheck size={20} className="text-bespoke-accent" weight="duotone" /> Bhramari 7-Domain Scorecard
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {domainScores.map((ds, i) => {

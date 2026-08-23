@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard, SectionHeader } from './GlassCard'
-import { ShieldCheck, Lightning, Sparkle, Globe, Crown, Code, FileArrowUp, FolderOpen, Bug, TreeStructure, Microphone, Stop, ChatText } from '@phosphor-icons/react'
+import { ShieldCheck, Lightning, Sparkle, Globe, Crown, Code, FileArrowUp, Bug, TreeStructure, Microphone, Stop, ChatText } from '@phosphor-icons/react'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -504,14 +504,6 @@ public class UserProfileServlet extends HttpServlet {
                 onChange={handleFileSelect}
                 className="hidden" 
               />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSwarming}
-                className="px-4 py-3.5 rounded-xl bg-bespoke-surface border border-bespoke-border hover:border-bespoke-accent text-bespoke-text transition-colors flex items-center justify-center"
-                title="Upload file"
-              >
-                <FolderOpen size={20} weight="duotone" />
-              </button>
               
               <motion.button
                 onClick={() => onSwarm(code, language, targetLanguage)}

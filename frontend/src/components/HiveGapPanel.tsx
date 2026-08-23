@@ -109,7 +109,7 @@ export function HiveGapPanel({ lastResult }: HiveGapPanelProps) {
             <div className="flex gap-2 p-2.5 rounded-xl bg-green-50 border border-green-200 text-xs text-green-900">
               <SealCheck size={16} weight="fill" className="text-green-500 shrink-0" />
               <div>
-                <span className="font-bold">No Critical Gaps:</span> Code complies with Soloknuckle strict security parameters.
+                <span className="font-bold">No Critical Gaps:</span> Code complies with Bhramari strict security parameters.
               </div>
             </div>
           ) : (

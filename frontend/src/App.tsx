@@ -10,7 +10,7 @@ import { ResultsPanel } from './components/ResultsPanel'
 import { GlassCard, SectionHeader } from './components/GlassCard'
 import { HealthIndicator } from './components/HealthIndicator'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TerminalWindow, UsersThree, FileText, Brain, Globe, Robot, ChartBar, Star, BookOpen, Bug } from '@phosphor-icons/react'
+import { TerminalWindow, UsersThree, Star, BookOpen, Bug, DownloadSimple, Warning, SealCheck, ChartBar, Globe } from '@phosphor-icons/react'
 
 type Language = 'python' | 'javascript' | 'go' | 'rust' | 'java'
 
@@ -24,11 +24,10 @@ export default function App() {
   const [submissionId, setSubmissionId] = useState<string | null>(null)
   const [lastResult, setLastResult] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<'review' | 'colony'>('review')
-  const [stats, setStats] = useState<{ total_reviews: number; patterns_learned: number; languages_supported: number; agents_active: number } | null>(null)
   const [voicePrompt, setVoicePrompt] = useState<string | undefined>(undefined)
   const [voiceLanguage, setVoiceLanguage] = useState<string | undefined>(undefined)
 
-  const { status, findings, submission, error } = useSwarm(submissionId)
+  const { status, findings, submission, error, reset } = useSwarm(submissionId)
   const { login } = useAuth()
 
   // Auto-login for hackathon instant usability — run once on mount
@@ -38,7 +37,6 @@ export default function App() {
         const anonId = Math.random().toString(36).substring(2, 8)
         await login(`anon_${anonId}@example.com`, `anon_${anonId}`)
       }
-      api.colonyStats().then(setStats).catch(console.error)
     }
     ensureAuth()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,8 +57,13 @@ export default function App() {
       }
     }
 
+    // Reset first so the button immediately un-sticks and state is fresh
+    reset()
     setSubmissionId(null)
     setLastResult(null)
+
+    // Brief tick to let state flush before we set a new submissionId
+    await new Promise(r => setTimeout(r, 50))
 
     try {
       const { id } = await api.submit({
@@ -76,6 +79,7 @@ export default function App() {
       setVoiceLanguage(undefined)
     } catch (e) {
       console.error('Submit failed', e)
+      reset()
     }
   }
 
@@ -187,36 +191,129 @@ export default function App() {
             >
               <HiveGapPanel lastResult={lastResult} />
 
-              {/* Colony Stats Card */}
-              <GlassCard glow="purple" className="space-y-5">
-                <SectionHeader icon={<ChartBar size={20} />} title="Colony Analytics" />
-
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: 'Total Reviews', value: stats?.total_reviews ?? '—', icon: <FileText size={28} className="mx-auto text-bespoke-accent" /> },
-                    { label: 'Patterns Learned', value: stats?.patterns_learned ?? '—', icon: <Brain size={28} className="mx-auto text-bespoke-accent" /> },
-                    { label: 'Languages Supported', value: stats ? `${stats.languages_supported}+` : '—', icon: <Globe size={28} className="mx-auto text-bespoke-accent" /> },
-                    { label: 'Agents Active', value: stats?.agents_active ?? '—', icon: <Robot size={28} className="mx-auto text-bespoke-accent" /> },
-                  ].map((stat, i) => (
-                    <div key={i} className="p-4 rounded-xl bg-bespoke-surface border border-bespoke-border text-center">
-                      <div className="mb-2">{stat.icon}</div>
-                      <div className="text-2xl font-black neon-text text-bespoke-text">{stat.value}</div>
-                      <div className="text-xs text-bespoke-muted mt-1">{stat.label}</div>
-                    </div>
-                  ))}
+              {/* Colony Gap Dashboard */}
+              <GlassCard glow="purple" className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <SectionHeader icon={<ChartBar size={20} />} title="Gap Analysis Dashboard" />
+                  {lastResult && (
+                    <button
+                      onClick={() => {
+                        let md = `# Bhramari Swarm Report\n\n`
+                        md += `**Score:** ${lastResult.quality_score?.toFixed(1) ?? 'N/A'} / 10\n`
+                        md += `**Verdict:** ${lastResult.hive_title ?? ''}\n\n`
+                        md += `## Bug Nature & Findings\n`
+                        if (lastResult.findings?.length) {
+                          lastResult.findings.forEach((f: any, i: number) => {
+                            md += `${i+1}. [${f.severity?.toUpperCase()}] ${f.description}\n`
+                            if (f.line) md += `   - Line: ${f.line}\n`
+                            if (f.suggestion) md += `   - Proposed Fix: ${f.suggestion}\n`
+                          })
+                        } else { md += `No issues found.\n` }
+                        md += `\n## Proposed Architecture / Strengths\n`
+                        if (lastResult.strengths?.length) {
+                          lastResult.strengths.forEach((s: string) => md += `- ${s}\n`)
+                        }
+                        md += `\n**Next Step:** ${lastResult.growth_tip || ''}\n`
+                        md += `\n## Prompt to Fix Code (use in Cursor / VSCode / Copilot)\n`
+                        md += `Please act as a senior software engineer. Review the following issues:\n\n`
+                        if (lastResult.findings) {
+                          lastResult.findings.forEach((f: any) => {
+                            md += `- ${f.description} (Fix: ${f.suggestion || ''})\n`
+                          })
+                        }
+                        md += `\nBased on these findings, rewrite the provided code to be secure, performant, and follow best practices.`
+                        const blob = new Blob([md], { type: 'text/markdown' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `bhramari_report_${lastResult.id || 'export'}.md`
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                        URL.revokeObjectURL(url)
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bespoke-accent/10 border border-bespoke-accent/30 text-bespoke-accent text-xs font-semibold hover:bg-bespoke-accent/20 transition-colors"
+                    >
+                      <DownloadSimple size={14} weight="bold" /> Download Report
+                    </button>
+                  )}
                 </div>
 
-                {/* Architecture badges */}
-                <div>
-                  <p className="text-xs text-bespoke-muted font-medium uppercase tracking-wider mb-3">GCP Architecture</p>
-                  <div className="flex flex-wrap gap-2">
-                    {['Cloud Run', 'Vertex AI', 'Pub/Sub', 'Cloud SQL', 'Memorystore', 'Cloud Tasks', 'Cloud CDN', 'Secret Manager'].map((svc) => (
-                      <span key={svc} className="px-2.5 py-1 rounded-full bg-bespoke-surface border border-bespoke-border text-xs text-bespoke-muted">
-                        {svc}
-                      </span>
-                    ))}
+                {!lastResult ? (
+                  <div className="flex flex-col items-center justify-center flex-grow py-12 text-bespoke-muted">
+                    <Bug size={36} weight="duotone" className="mb-3 text-bespoke-accent opacity-40" />
+                    <p className="text-sm font-medium">No analysis yet</p>
+                    <p className="text-xs mt-1">Paste code and run Summon the Swarm to see your gap dashboard here.</p>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    {/* Summary bar */}
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-bespoke-surface border border-bespoke-border">
+                      <div className="text-center min-w-[64px]">
+                        <div className="text-2xl font-black" style={{ color: (lastResult.quality_score ?? 0) >= 8 ? '#10b981' : (lastResult.quality_score ?? 0) >= 5 ? '#f59e0b' : '#ef4444' }}>
+                          {((lastResult.quality_score ?? 0) * 10).toFixed(0)}%
+                        </div>
+                        <div className="text-[10px] text-bespoke-muted uppercase tracking-wide">Overall</div>
+                      </div>
+                      <div className="flex-1 text-sm text-bespoke-text leading-relaxed">
+                        {lastResult.summary || lastResult.hive_title || 'Analysis complete'}
+                      </div>
+                    </div>
+
+                    {/* Severity breakdown */}
+                    {(lastResult.findings?.length ?? 0) > 0 && (() => {
+                      const critical = lastResult.findings!.filter((f: any) => f.severity === 'critical')
+                      const high = lastResult.findings!.filter((f: any) => f.severity === 'high')
+                      const medium = lastResult.findings!.filter((f: any) => f.severity === 'medium')
+                      const low = lastResult.findings!.filter((f: any) => f.severity === 'low')
+                      return (
+                        <div className="grid grid-cols-4 gap-2">
+                          {[{label:'Critical',count:critical.length,color:'bg-red-500/20 border-red-300 text-red-500'},
+                            {label:'High',count:high.length,color:'bg-orange-500/20 border-orange-300 text-orange-500'},
+                            {label:'Medium',count:medium.length,color:'bg-yellow-500/20 border-yellow-300 text-yellow-600'},
+                            {label:'Low',count:low.length,color:'bg-green-500/20 border-green-300 text-green-600'}].map(s => (
+                            <div key={s.label} className={`p-2 rounded-xl border text-center ${s.color}`}>
+                              <div className="text-xl font-black">{s.count}</div>
+                              <div className="text-[10px] font-semibold uppercase tracking-wide">{s.label}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Findings list */}
+                    <div className="space-y-2 overflow-y-auto max-h-60 pr-1">
+                      {(lastResult.findings?.length ?? 0) === 0 ? (
+                        <div className="flex gap-2 p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-800">
+                          <SealCheck size={16} weight="fill" className="text-green-500 shrink-0 mt-0.5" />
+                          <span><strong>No Issues Found</strong> — Code passes all Bhramari security and quality parameters.</span>
+                        </div>
+                      ) : (
+                        lastResult.findings!.map((f: any, i: number) => {
+                          const isRed = f.severity === 'critical' || f.severity === 'high'
+                          return (
+                            <div key={i} className={`flex gap-2 p-2.5 rounded-xl border text-xs ${
+                              f.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-900' :
+                              f.severity === 'high' ? 'bg-orange-50 border-orange-200 text-orange-900' :
+                              f.severity === 'medium' ? 'bg-yellow-50 border-yellow-200 text-yellow-900' :
+                              'bg-gray-50 border-gray-200 text-gray-700'
+                            }`}>
+                              <Warning size={15} weight="fill" className={`shrink-0 mt-0.5 ${
+                                isRed ? 'text-red-500' : 'text-yellow-500'
+                              }`} />
+                              <div>
+                                <span className="font-bold">[{f.severity?.toUpperCase()}] {f.agent_type?.replace('_', ' ')}:</span>{' '}
+                                {f.description}
+                                {f.suggestion && <div className="mt-1 text-indigo-700 font-medium">💡 {f.suggestion}</div>}
+                                {f.line && <div className="mt-0.5 font-mono text-bespoke-muted">Line {f.line}</div>}
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </>
+                )}
               </GlassCard>
             </motion.div>
           )}

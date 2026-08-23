@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { api } from '../services/api'
 import type { Finding, Submission } from '../types'
 
@@ -9,8 +9,24 @@ export function useSwarm(submissionId: string | null) {
   const [error, setError] = useState<string | null>(null)
   const intervalRef = useRef<number | null>(null)
 
+  const reset = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    setStatus('idle')
+    setSubmission(null)
+    setFindings([])
+    setError(null)
+  }, [])
+
   useEffect(() => {
-    if (!submissionId) return
+    if (!submissionId) {
+      // When submissionId is cleared, also reset state so button un-sticks
+      setStatus('idle')
+      setFindings([])
+      setError(null)
+      return
+    }
+
+    setStatus('swarming')
 
     intervalRef.current = window.setInterval(async () => {
       try {
@@ -32,13 +48,15 @@ export function useSwarm(submissionId: string | null) {
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to poll submission')
+        if (intervalRef.current) clearInterval(intervalRef.current)
+        setStatus('failed')
       }
-    }, 1000)
+    }, 1500)
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
   }, [submissionId])
 
-  return { status, submission, findings, error }
+  return { status, submission, findings, error, reset }
 }
