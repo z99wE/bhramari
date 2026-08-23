@@ -920,6 +920,21 @@ async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
 
 # ─── Health ───────────────────────────────────────────────────────────────────
 
+@app.get("/")
+async def root():
+    return {
+        "service": "Bhramari API",
+        "version": "1.0.0",
+        "status": "healthy",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "auth": "/api/v1/auth/register, /api/v1/auth/login",
+            "submissions": "/api/v1/submissions",
+            "leaderboard": "/api/v1/leaderboard"
+        }
+    }
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "bhramari-api", "timestamp": datetime.utcnow().isoformat(), "version": "1.0.0"}
