@@ -18,7 +18,7 @@ from typing import AsyncGenerator, Dict, List, Optional
 from uuid import uuid4
 
 import redis
-import jwt
+import jwt as pyjwt
 from fastapi import (
     FastAPI, Depends, HTTPException, UploadFile, File, Header, Query
 )
@@ -489,7 +489,7 @@ def get_current_user(db: Session = Depends(get_db), authorization: str = Header(
         raise HTTPException(status_code=401, detail="Authentication required")
     token = authorization.split(" ")[1]
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
         user = db.query(User).filter(User.id == payload.get("sub")).first()
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -516,8 +516,7 @@ async def login(user_data: UserCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user: raise HTTPException(status_code=401, detail="Invalid credentials")
     expire = datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINUTES)
-    token = jwt.encode({"sub": user.id, "exp": expire, "iat": datetime.utcnow()},
-                       JWT_SECRET, algorithm=JWT_ALGO)
+    token = pyjwt.encode({"sub": user.id, "exp": expire, "iat": datetime.utcnow()}, JWT_SECRET, algorithm=JWT_ALGO)
     return {"access_token": token, "token_type": "bearer", "user": UserResponse.model_validate(user)}
 
 
