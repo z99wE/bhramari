@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { GoogleLogin } from '@react-oauth/google'
 import { jwtDecode } from 'jwt-decode'
-import { ShieldCheck, Warning, Robot } from '@phosphor-icons/react'
+import { ShieldCheck, Warning, Lock } from '@phosphor-icons/react'
 
 const ALLOWED_DOMAINS = ['gmail.com'] // You can add custom domains here, e.g., 'yourcompany.com'
 
