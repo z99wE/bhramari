@@ -18,12 +18,12 @@ from typing import AsyncGenerator, Dict, List, Optional
 from uuid import uuid4
 
 import redis
-import jwt as pyjwt
+import jwt
 from fastapi import (
     FastAPI, Depends, HTTPException, UploadFile, File, Header, Query
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel, validator
 from sqlalchemy import (desc, 
     create_engine, Column, String, Integer, Float, Text, DateTime,
@@ -31,17 +31,11 @@ from sqlalchemy import (desc,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
+from dotenv import load_dotenv
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
-from dotenv import load_dotenv
 load_dotenv()
-
-# All GCP features use demo mode (no heavy SDKs needed)
-_GCP_LINGUAL_READY = False
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("bhramari")
-logger.info("Bhramari API starting (demo mode)")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bhramari.db")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 JWT_SECRET = os.getenv("JWT_SECRET", "bhramari-dev-secret-change-me")
@@ -56,12 +50,7 @@ logger = logging.getLogger("bhramari")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-# Create tables lazily - only when needed
-def init_db():
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables ready")
 
-# Redis client — gracefully degrade if unavailable (e.g. local dev without Redis)
 try:
     redis_client = redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=1)
     try:
@@ -152,8 +141,6 @@ class Achievement(Base):
     meta_data = Column(JSON, nullable=True)
 
 
-Base.metadata.create_all(bind=engine)
-
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
 class UserCreate(BaseModel):
@@ -234,8 +221,6 @@ class LeaderboardEntry(BaseModel):
 # ─── Core Engines ─────────────────────────────────────────────────────────────
 
 class SwarmScoreCalculator:
-    """Calculate the 1-10 quality score with hive titles."""
-    
     PENALTIES = {"critical": -2.5, "high": -1.2, "medium": -0.6, "low": -0.2, "info": 0.0}
     
     TITLES = [
@@ -266,8 +251,6 @@ class SwarmScoreCalculator:
 
 
 class SecretScanner:
-    """Pre-review credential detection."""
-    
     PATTERNS = {
         "aws_access_key": re.compile(r"(?:AKIA|A3T)[A-Z0-9]{16,}"),
         "github_token": re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}"),
@@ -292,8 +275,6 @@ class SecretScanner:
 
 
 class PatternMatcher:
-    """Match submitted code against historical hive patterns."""
-    
     CACHE_TTL = 3600
     
     @classmethod
@@ -350,8 +331,6 @@ class PatternMatcher:
 
 
 class SwarmAgentPipeline:
-    """Multi-agent Vertex AI review pipeline (simulated for MVP)."""
-    
     SIMULATED_FINDINGS = {
         "python": [
             {"type": "security", "severity": "critical", "line": None,
@@ -425,12 +404,9 @@ class SwarmAgentPipeline:
     ]
     
     @classmethod
-    async def swarm_review(
-        cls, code: str, language: str, historical_patterns: List[Dict]
-    ) -> Dict:
+    async def swarm_review(cls, code: str, language: str, historical_patterns: List[Dict]) -> Dict:
         lang_findings = cls.SIMULATED_FINDINGS.get(language, cls.DEFAULT_FINDINGS[:])
         
-        # Add historical pattern matches
         pattern_findings = []
         for pattern in historical_patterns[:3]:
             pattern_findings.append({
@@ -465,6 +441,10 @@ app = FastAPI(
     docs_url="/docs", redoc_url="/redoc"
 )
 
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
+                   allow_methods=["*"], allow_headers=["*"])
+
+
 @app.on_event("startup")
 async def startup_event():
     """Create database tables on startup."""
@@ -473,17 +453,6 @@ async def startup_event():
         logger.info("Database tables ready")
     except Exception as e:
         logger.warning(f"DB init skipped (will create on first request): {e}")
-
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-
-# Serve frontend static files
-STATIC_DIR = Path(__file__).parent / "static"
-if STATIC_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
-
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
 
 
 def get_db():
@@ -497,12 +466,35 @@ def get_current_user(db: Session = Depends(get_db), authorization: str = Header(
         raise HTTPException(status_code=401, detail="Authentication required")
     token = authorization.split(" ")[1]
     try:
-        payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
         user = db.query(User).filter(User.id == payload.get("sub")).first()
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
     if not user: raise HTTPException(status_code=401, detail="User not found")
     return user
+
+
+# ─── Root Endpoint ────────────────────────────────────────────────────────────
+
+@app.get("/")
+async def root():
+    return {
+        "service": "Bhramari API",
+        "version": "1.0.0",
+        "status": "healthy",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "auth": "/api/v1/auth/register, /api/v1/auth/login",
+            "submissions": "/api/v1/submissions",
+            "leaderboard": "/api/v1/leaderboard"
+        }
+    }
+
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "bhramari-api", "timestamp": datetime.utcnow().isoformat(), "version": "1.0.0"}
 
 
 # ─── Auth Endpoints ───────────────────────────────────────────────────────────
@@ -524,7 +516,8 @@ async def login(user_data: UserCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user: raise HTTPException(status_code=401, detail="Invalid credentials")
     expire = datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRY_MINUTES)
-    token = pyjwt.encode({"sub": user.id, "exp": expire, "iat": datetime.utcnow()}, JWT_SECRET, algorithm=JWT_ALGO)
+    token = jwt.encode({"sub": user.id, "exp": expire, "iat": datetime.utcnow()},
+                       JWT_SECRET, algorithm=JWT_ALGO)
     return {"access_token": token, "token_type": "bearer", "user": UserResponse.model_validate(user)}
 
 
@@ -565,7 +558,6 @@ async def get_submission(submission_id: str, db: Session = Depends(get_db)):
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub: raise HTTPException(status_code=404, detail="Submission not found")
     
-    # Load findings explicitly to avoid lazy-load issues
     from sqlalchemy import select as sa_select
     finding_rows = db.execute(sa_select(Finding).where(Finding.submission_id == submission_id)).scalars().all()
     findings = []
@@ -661,129 +653,36 @@ async def stream_swarm(submission_id: str, db: Session = Depends(get_db)):
 @app.post("/api/v1/voice/transcribe")
 async def transcribe_voice(
     audio_file: UploadFile = File(...),
-    language: str = Query("hi-IN", description="Source language code (e.g., hi-IN, ta-IN, bn-IN, mr-IN, en)"),
+    language: str = Query("hi-IN"),
     current_user: User = Depends(get_current_user),
 ):
-    """Transcribe voice prompt using Cloud Speech-to-Text (real GCP API)."""
-    audio_bytes = await audio_file.read()
-
-    # Demo transcription (no GCP SDK needed)
     demo_transcriptions = {
-        "hi-IN": "भामाई इस Python कोड में security issues check kar — especially SQL injection",
-        "ta-IN": "இந்த code review பண்ணு, security மற்றும் performance காண்க",
+        "hi-IN": "भामाई इस Python कोड में security issues check kar",
+        "ta-IN": "இந்த code review பண்ணு",
         "bn-IN": "এই কোডে security vulnerability আছো কিনা দেখো",
-        "mr-IN": "हा कोड रি व्हिऊ करा, सुरक्षितता तपासा",
-        "en": "Review this Python code for SQL injection and performance issues",
+        "mr-IN": "हा कोड रिव्हिऊ करा",
+        "en": "Review this Python code for security issues",
     }
     transcription = demo_transcriptions.get(language, f"[Voice input in {language}]")
-    return {"transcription": transcription, "language": language, "detected_language": language}
-
-    # Demo fallback
-    demo_transcriptions = {
-        "hi-IN": "भामाई इस Python कोड में security issues check kar — especially SQL injection",
-        "ta-IN": "இந்த code review பண்ணு, security மற்றும் performance காண்க",
-        "bn-IN": "এই কোডে security vulnerability আছো কিনা দেখো",
-        "mr-IN": "हा कोड रि व्हिऊ करा, सुरक्षितता तपासा",
-        "en": "Review this Python code for SQL injection and performance issues",
-    }
-    transcription = demo_transcriptions.get(language, f"[Voice input in {language}: '{audio_file.filename}']")
-    return {"transcription": transcription, "language": language, "detected_language": language}
+    return {"transcription": transcription, "language": language}
 
 
 @app.post("/api/v1/voice/review")
 async def voice_review(
     audio_file: UploadFile = File(...),
     language: str = Query("hi-IN"),
-    code: str = Query("", description="Optional accompanying code"),
+    code: str = Query(""),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Full voice-to-review pipeline: transcribe → translate → swarm review → TTS narration."""
-
-    # Step 1: Transcribe (Speech-to-Text)
-    audio_bytes = await audio_file.read()
-    if _GCP_LINGUAL_READY:
-        try:
-            import google.cloud.speech as gcs_speech; stt_client = gcs_speech.SpeechClient()
-            audio = gcs_speech.RecognitionAudio(content=audio_bytes)
-            config = gcs_speech.RecognitionConfig(
-                encoding=gcs_speech.RecognitionConfig.AudioEncoding.LINEAR16,
-                language_code=language,
-            )
-            response = stt_client.recognize(config=config, audio=audio)
-            transcription = next((r.transcript for r in response.results if r.stability > 0.5), "")
-        except Exception:
-            transcription = ""
-    else:
-        transcription = ""
-
-    if not transcription:
-        transcription = {
-            "hi-IN": "इस python कोड में security और performance check करो",
-            "ta-IN": "இந்த code review செய்யு, security மற்றும் performance பார்க்க",
-            "en": "Review this code for security and performance",
-        }.get(language, "Review this code")
-
-    # Step 2: Translate to English for swarm processing
-    english_text = transcription
-    if language != "en" and _GCP_LINGUAL_READY:
-        try:
-            import google.cloud.translate_v2 as gcs_translate; tx_client = gcs_translate.Client()
-            result = tx_client.translate(transcription, target_language="en", source_language=language)
-            english_text = result["translatedText"]
-        except Exception as e:
-            logger.warning(f"Translation failed: {e}")
-
-    # Step 3: Parse intent
+    transcription = demo_transcriptions.get(language, "Review this code")
     intent = {"type": "review_code", "code": code or "def hello(): pass", "language": "python"}
-
-    # Step 4: Run swarm review on translated text
     review = await SwarmAgentPipeline.swarm_review(intent["code"], intent["language"], [])
-
-    # Step 5: TTS narration (in original language)
-    narration_text = (f"Your code scored {review['quality_score']} out of 10. "
-                      f"You are classified as {review['hive_title']}. "
-                      f"Key improvement: {review['growth_tip']}")
-
-    tts_url = None
-    if _GCP_LINGUAL_READY:
-        try:
-            import google.cloud.texttospeech as gcs_tts; tts_client = gcs_tts.TextToSpeechClient()
-            synthesis_input = gcs_tts.SynthesisInput(text=narration_text)
-            voice = gcs_tts.VoiceSelectionParams(
-                language_code=language if language != "en" else "en-US",
-                name="en-US-Standard-C" if language == "en" else None,
-            )
-            config = gcs_tts.AudioConfig(audio_encoding=gcs_tts.AudioEncoding.MP3)
-            response = tts_client.synthesize_speech(
-                input=synthesis_input, voice=voice, audio_config=config
-            )
-            # Store TTS audio in GCS for playback
-            import google.cloud.storage as gcs_storage
-            gcs_client = gcs_storage.Client()
-            bucket = gcs_client.bucket(os.getenv("TTS_BUCKET", "bhramari-tts"))
-            blob = bucket.blob(f"narrations/{secrets.token_hex(8)}.mp3")
-            blob.upload_from_string(response.audio_content, content_type="audio/mpeg")
-            tts_url = blob.public_url
-        except Exception as e:
-            logger.warning(f"TTS failed: {e}")
-
+    narration_text = f"Your code scored {review['quality_score']} out of 10."
     return {
         "transcription": transcription,
-        "translation": english_text if language != "en" else None,
-        "intent": intent,
         "review": review,
-        "narration_audio_url": tts_url,
         "narration_text": narration_text,
-        "language": language,
-    }
-    
-    return {
-        "transcription": transcription,
-        "intent": intent,
-        "review": review,
-        "narration_audio_url": tts_url,
-        "narration_text": narration,
         "language": language,
     }
 
@@ -793,13 +692,11 @@ async def voice_review(
 async def process_swarm(submission_id: str, code: str, language: str,
                         user_id: str, db: Session, target_lang: str = "en",
                         voice_prompt: Optional[str] = None, voice_language: Optional[str] = None):
-    """Async background task: run the multi-agent hive mind."""
     try:
         sub = db.query(Submission).filter(Submission.id == submission_id).first()
         sub.status = "swarming"
         db.commit()
         
-        # Match historical patterns (skip redis if unavailable)
         try:
             patterns = PatternMatcher.match(code, language, db)
         except Exception:
@@ -807,10 +704,8 @@ async def process_swarm(submission_id: str, code: str, language: str,
         sub.patterns_matched = patterns
         db.commit()
         
-        # Run swarm
         review = await SwarmAgentPipeline.swarm_review(code, language, patterns)
         
-        # Save findings
         for finding_data in review["findings"]:
             finding = Finding(
                 submission_id=submission_id,
@@ -823,7 +718,6 @@ async def process_swarm(submission_id: str, code: str, language: str,
             )
             db.add(finding)
         
-        # Update submission
         sub.status = "completed"
         sub.quality_score = review["quality_score"]
         sub.percentile_rank = review["percentile"]
@@ -831,7 +725,6 @@ async def process_swarm(submission_id: str, code: str, language: str,
         sub.review_data = review
         sub.completed_at = datetime.utcnow()
         
-        # Update user
         user = db.query(User).filter(User.id == user_id).first()
         user.nectar_points += int(review["quality_score"] * 5)
         user.xp += int(review["quality_score"] * 10)
@@ -899,8 +792,6 @@ async def get_leaderboard(limit: int = Query(50, ge=1, le=100),
             for i, r in enumerate(rows)]
 
 
-
-
 # ─── User Stats ───────────────────────────────────────────────────────────────
 
 @app.get("/api/v1/users/{user_id}")
@@ -926,28 +817,6 @@ async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     }
 
 
-# ─── Health ───────────────────────────────────────────────────────────────────
-
-@app.get("/")
-async def root():
-    return {
-        "service": "Bhramari API",
-        "version": "1.0.0",
-        "status": "healthy",
-        "docs": "/docs",
-        "health": "/health",
-        "endpoints": {
-            "auth": "/api/v1/auth/register, /api/v1/auth/login",
-            "submissions": "/api/v1/submissions",
-            "leaderboard": "/api/v1/leaderboard"
-        }
-    }
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "service": "bhramari-api", "timestamp": datetime.utcnow().isoformat(), "version": "1.0.0"}
-
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("Bhramari_Main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080)
