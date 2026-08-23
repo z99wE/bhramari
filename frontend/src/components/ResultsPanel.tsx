@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { CheckCircle, Hexagon, Sparkle, SpeakerHigh, StopCircle } from '@phosphor-icons/react'
 import type { Submission } from '../types'
 
 interface ResultsPanelProps {
@@ -8,7 +10,7 @@ interface ResultsPanelProps {
 export function ResultsPanel({ data }: ResultsPanelProps) {
   const score = data.quality_score ?? 0
   const hiveTitle = data.hive_title || '—'
-  const hiveEmoji = data.hive_emoji || '🐝'
+  const hiveEmoji = data.hive_emoji || <Hexagon weight="duotone" className="text-bespoke-accent" />
   const percentile = data.percentile_rank ?? 50
 
   // Score ring color based on score
@@ -20,6 +22,34 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
 
   const circumference = 2 * Math.PI * 45
   const strokeDashoffset = circumference * (1 - score / 10)
+
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  const handleTTS = () => {
+    if (isPlaying) {
+      window.speechSynthesis.cancel()
+      setIsPlaying(false)
+      return
+    }
+    
+    // Construct text to read based on what's available
+    const summaryText = data.summary ? data.summary : ''
+    const strengthsText = data.strengths?.length ? `Strengths include: ${data.strengths.join('. ')}.` : ''
+    const tipText = data.growth_tip ? `Next step: ${data.growth_tip}` : ''
+    const findingsText = data.findings?.length ? `The swarm found ${data.findings.length} issues.` : ''
+    
+    const textToRead = `Your code scored ${score.toFixed(1)} out of 10. ${summaryText} ${findingsText} ${strengthsText} ${tipText}`
+    
+    const utterance = new SpeechSynthesisUtterance(textToRead)
+    // Optional: map targetLanguage to voice lang if we had it in Submission model
+    // utterance.lang = 'en-US'
+    
+    utterance.onend = () => setIsPlaying(false)
+    utterance.onerror = () => setIsPlaying(false)
+    
+    window.speechSynthesis.speak(utterance)
+    setIsPlaying(true)
+  }
 
   return (
     <motion.div
@@ -56,8 +86,21 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
               <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Score</span>
             </div>
           </div>
-          <div className="text-2xl mt-2">{hiveEmoji}</div>
-          <div className="text-sm font-semibold text-gray-200 mt-0.5">{hiveTitle}</div>
+          <div className="flex items-center gap-3 mt-2 h-8">
+            <div className="text-2xl flex justify-center items-center">{hiveEmoji}</div>
+            <button 
+              onClick={handleTTS}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                isPlaying 
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                  : 'bg-bespoke-accent/20 text-bespoke-accent border border-bespoke-accent/30 hover:bg-bespoke-accent/30'
+              }`}
+              title="Listen to Review"
+            >
+              {isPlaying ? <><StopCircle weight="fill" /> Stop</> : <><SpeakerHigh weight="fill" /> Listen</>}
+            </button>
+          </div>
+          <div className="text-sm font-semibold text-gray-200 mt-2">{hiveTitle}</div>
           <div className="text-xs text-gray-500 mt-1">Top {100 - percentile}% of hive</div>
         </div>
 
@@ -65,12 +108,12 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
         <div>
           <h4 className="font-semibold text-green-400 mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            ✓ Strengths
+            <CheckCircle size={18} weight="duotone" /> Strengths
           </h4>
           <ul className="space-y-2">
             {(data.strengths || []).map((s, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                <span className="text-green-500 mt-0.5 flex-shrink-0">✓</span>
+                <CheckCircle size={16} weight="fill" className="text-green-500 mt-0.5 flex-shrink-0" />
                 {s}
               </li>
             ))}
@@ -81,10 +124,10 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
         <div>
           <h4 className="font-semibold text-amber-400 mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            ✦ Next Buzz
+            <Sparkle size={18} weight="duotone" /> Next Step
           </h4>
           <p className="text-sm text-gray-300 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20 leading-relaxed">
-            {data.growth_tip || 'Keep buzzing! 🐝'}
+            {data.growth_tip || 'Keep improving your code!'}
           </p>
           {data.patterns_matched && data.patterns_matched.length > 0 && (
             <div className="mt-3">

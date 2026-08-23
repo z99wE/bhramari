@@ -46,6 +46,17 @@ export const api = {
     body: JSON.stringify(data),
   }),
 
+  upload: (file: File, target_language: string = 'en') => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('target_language', target_language)
+    return fetch(`${API_BASE}/api/v1/submissions/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('bhramari_token') || ''}` },
+      body: form,
+    }).then(r => r.json())
+  },
+
   getSubmission: (id: string) =>
     request<Submission>(`/api/v1/submissions/${id}`),
 

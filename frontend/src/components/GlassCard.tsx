@@ -33,7 +33,7 @@ export function GlassCard({ children, className = '', glow = 'none', onClick }: 
 }
 
 interface SectionHeaderProps {
-  icon: string
+  icon: ReactNode
   title: string
   subtitle?: string
 }

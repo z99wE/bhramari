@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { Books, FolderOpen } from '@phosphor-icons/react'
 
 const SAMPLE_PATTERNS = `id,type,description
 1,security,Never interpolate raw user input directly into SQL queries
@@ -29,9 +30,9 @@ export function PatternsPanel() {
         body: file,
       })
       const data = await resp.json()
-      setImportResult(`✅ ${data.message}`)
+      setImportResult(`Import successful: ${data.message}`)
     } catch {
-      setImportResult('⚠️ Pattern import simulated — connect backend to enable full functionality')
+      setImportResult('Pattern import simulated — connect backend to enable full functionality')
     }
   }
 
@@ -43,7 +44,7 @@ export function PatternsPanel() {
       className="glass rounded-2xl p-6"
     >
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">📚</span>
+        <Books size={24} weight="duotone" className="text-bespoke-accent" />
         <h3 className="font-semibold text-white text-base">Hive Memory</h3>
       </div>
       <p className="text-sm text-gray-500 mb-5">
@@ -66,7 +67,9 @@ export function PatternsPanel() {
           className="hidden"
           aria-label="Upload patterns CSV"
         />
-        <div className="text-2xl mb-2">📁</div>
+        <div className="text-2xl mb-2 flex justify-center text-bespoke-accent">
+          <FolderOpen size={32} weight="duotone" />
+        </div>
         <p className="text-sm text-gray-300 font-medium">
           {uploadedFile ? `Uploaded: ${uploadedFile}` : 'Click to upload patterns.csv'}
         </p>

@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
+import { Hexagon, Coin } from '@phosphor-icons/react'
 
 export function Header() {
   const { user, isLoggedIn, logout } = useAuth()
@@ -18,11 +19,11 @@ export function Header() {
         {/* Logo */}
         <div className="flex items-center gap-3">
           <motion.div
-            className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-cyan-500 flex items-center justify-center text-xl"
+            className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-cyan-500 flex items-center justify-center text-xl text-white"
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ repeat: Infinity, duration: 2 }}
           >
-            🐝
+            <Hexagon size={24} weight="fill" />
           </motion.div>
           <div>
             <h1 className="text-xl font-black neon-text tracking-tight">Bhramari</h1>
@@ -39,7 +40,7 @@ export function Header() {
               <div className="w-2 h-2 rounded-full bg-green-500 swarm-pulse" />
               <span className="text-gray-300 font-medium">{user.username}</span>
               <span className="text-amber-400 text-xs font-mono">Lvl {user.swarm_level}</span>
-              <span className="text-cyan-400 text-xs font-mono">{user.nectar_points}🍯</span>
+              <span className="text-cyan-400 text-xs font-mono flex items-center gap-1">{user.nectar_points}<Coin size={14} weight="duotone" /></span>
             </div>
           )}
 
