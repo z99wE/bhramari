@@ -45,18 +45,24 @@ export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, se
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser.")
+      alert('Voice input requires Chrome or Edge on desktop. Please type your context in the box below instead.')
       return
+    }
+
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      alert('Microphone access requires a secure (HTTPS) connection.')
+      return
+    }
+
+    const LANG_MAP: Record<string, string> = {
+      en: 'en-IN', hi: 'hi-IN', ta: 'ta-IN', bn: 'bn-IN',
+      mr: 'mr-IN', kn: 'kn-IN', te: 'te-IN', ml: 'ml-IN',
     }
 
     recognitionRef.current = new SpeechRecognition()
     recognitionRef.current.continuous = false
     recognitionRef.current.interimResults = false
-    recognitionRef.current.lang = targetLanguage === 'en' ? 'en-US' : 
-                                 targetLanguage === 'hi' ? 'hi-IN' : 
-                                 targetLanguage === 'ta' ? 'ta-IN' : 
-                                 targetLanguage === 'bn' ? 'bn-IN' : 
-                                 targetLanguage === 'mr' ? 'mr-IN' : 'en-US'
+    recognitionRef.current.lang = LANG_MAP[targetLanguage] || 'en-IN'
 
     recognitionRef.current.onstart = () => setIsListening(true)
     
@@ -68,7 +74,11 @@ export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, se
     }
 
     recognitionRef.current.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error)
+      if (event.error === 'not-allowed') {
+        alert('Microphone access was denied. Please allow mic access in your browser settings and try again.')
+      } else {
+        console.error('Speech recognition error', event.error)
+      }
       setIsListening(false)
     }
 
@@ -322,10 +332,13 @@ public class UserProfileServlet extends HttpServlet {
                   aria-label="Select review language"
                 >
                   <option value="en">English</option>
-                  <option value="hi">Hindi (हिंदी)</option>
-                  <option value="ta">Tamil (தமிழ்)</option>
-                  <option value="bn">Bengali (বাংলা)</option>
-                  <option value="mr">Marathi (मराठी)</option>
+                  <option value="hi">हिंदी (Hindi)</option>
+                  <option value="ta">தமிழ் (Tamil)</option>
+                  <option value="bn">বাংলা (Bengali)</option>
+                  <option value="mr">मराठी (Marathi)</option>
+                  <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                  <option value="te">తెలుగు (Telugu)</option>
+                  <option value="ml">മലയാളം (Malayalam)</option>
                 </select>
               </div>
 

@@ -30,23 +30,35 @@ export default function App() {
   const [voiceLanguage, setVoiceLanguage] = useState<string | undefined>(undefined)
 
   const { status, findings, submission, error } = useSwarm(submissionId)
-  const { isLoggedIn, login } = useAuth()
+  const { login } = useAuth()
 
-  // Auto-login for hackathon instant usability
+  // Auto-login for hackathon instant usability — run once on mount
   useEffect(() => {
-    if (!isLoggedIn && !localStorage.getItem('bhramari_token')) {
-      const anonId = Math.random().toString(36).substring(2, 8)
-      login(`anon_${anonId}@example.com`, `anon_${anonId}`)
+    const ensureAuth = async () => {
+      if (!localStorage.getItem('bhramari_token')) {
+        const anonId = Math.random().toString(36).substring(2, 8)
+        await login(`anon_${anonId}@example.com`, `anon_${anonId}`)
+      }
+      api.colonyStats().then(setStats).catch(console.error)
     }
-    
-    // Fetch initial stats
-    api.colonyStats().then(setStats).catch(console.error)
-  }, [isLoggedIn, login])
+    ensureAuth()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const isSwarming = status === 'swarming'
 
-  const handleSwarm = async (userCode: string, userLang: string) => {
+  const handleSwarm = async (userCode: string, userLang: string, userTargetLang: string) => {
     if (!userCode.trim()) return
+
+    // Ensure we have a token before submitting
+    if (!localStorage.getItem('bhramari_token')) {
+      const anonId = Math.random().toString(36).substring(2, 8)
+      const ok = await login(`anon_${anonId}@example.com`, `anon_${anonId}`)
+      if (!ok) {
+        console.error('Auto-login failed, cannot submit')
+        return
+      }
+    }
 
     setSubmissionId(null)
     setLastResult(null)
@@ -56,7 +68,7 @@ export default function App() {
         title: 'Quick Review',
         content: userCode,
         source_language: userLang,
-        target_language: targetLanguage,
+        target_language: userTargetLang,
         voice_prompt: voicePrompt,
         voice_language: voiceLanguage,
       })
