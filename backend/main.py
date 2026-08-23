@@ -772,17 +772,57 @@ async def stream_swarm(submission_id: str, db: Session = Depends(get_db)):
 async def transcribe_voice(
     audio_file: UploadFile = File(...),
     language: str = Query("hi-IN"),
-    current_user: User = Depends(get_current_user),
 ):
-    demo_transcriptions = {
-        "hi-IN": "भामाई इस Python कोड में security issues check kar",
-        "ta-IN": "இந்த code review பண்ணு",
-        "bn-IN": "এই কোডে security vulnerability আছো কিনা দেখো",
-        "mr-IN": "हा कोड रिव्हिऊ करा",
-        "en": "Review this Python code for security issues",
-    }
-    transcription = demo_transcriptions.get(language, f"[Voice input in {language}]")
-    return {"transcription": transcription, "language": language}
+    """
+    Real Google Cloud Speech-to-Text transcription.
+    Accepts WebM/OGG audio from MediaRecorder and returns transcription.
+    No auth required for hackathon mode.
+    """
+    try:
+        from google.cloud import speech as gcp_speech
+
+        audio_bytes = await audio_file.read()
+
+        # Language code normalisation (frontend sends 'hi', backend needs 'hi-IN')
+        LANG_NORMALISE = {
+            "hi": "hi-IN", "ta": "ta-IN", "bn": "bn-IN",
+            "mr": "mr-IN", "kn": "kn-IN", "te": "te-IN",
+            "ml": "ml-IN", "en": "en-IN",
+        }
+        bcp47_lang = LANG_NORMALISE.get(language, language)
+
+        speech_client = gcp_speech.SpeechClient()
+        audio = gcp_speech.RecognitionAudio(content=audio_bytes)
+        config = gcp_speech.RecognitionConfig(
+            encoding=gcp_speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
+            sample_rate_hertz=48000,
+            language_code=bcp47_lang,
+            alternative_language_codes=["en-IN"],  # fallback to English
+            enable_automatic_punctuation=True,
+        )
+        response = speech_client.recognize(config=config, audio=audio)
+
+        transcript = " ".join(
+            result.alternatives[0].transcript
+            for result in response.results
+            if result.alternatives
+        )
+
+        if not transcript:
+            return JSONResponse(
+                status_code=422,
+                content={"error": "No speech detected. Please speak clearly and try again."}
+            )
+
+        return {"transcription": transcript, "language": bcp47_lang}
+
+    except Exception as e:
+        logger.error(f"Speech transcription error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Transcription failed: {str(e)}"}
+        )
+
 
 
 @app.post("/api/v1/voice/review")

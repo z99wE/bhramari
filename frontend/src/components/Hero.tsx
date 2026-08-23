@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard, SectionHeader } from './GlassCard'
-import { ShieldCheck, Lightning, Sparkle, Globe, Crown, Code, FileArrowUp, FolderOpen, Bug, TreeStructure, Microphone, ChatText } from '@phosphor-icons/react'
+import { ShieldCheck, Lightning, Sparkle, Globe, Crown, Code, FileArrowUp, FolderOpen, Bug, TreeStructure, Microphone, Stop, ChatText } from '@phosphor-icons/react'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 const AGENTS = [
   { name: 'security_drone', icon: <ShieldCheck weight="duotone" />, label: 'Security', color: 'from-red-500/20 to-orange-500/20', border: 'border-red-500/30' },
@@ -33,57 +35,80 @@ interface HeroProps {
 export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, setCode, setLanguage, setTargetLanguage, isSwarming, status, error, findings, voicePrompt, setVoicePrompt, setVoiceLanguage }: HeroProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<any>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
-  const startListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop()
-      setIsListening(false)
+  // ── GCP Speech-to-Text via MediaRecorder ──────────────────────────────────
+  const startRecording = async () => {
+    setMicError(null)
+    if (isRecording) {
+      // Stop recording — triggers ondataavailable
+      mediaRecorderRef.current?.stop()
       return
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      alert('Voice input requires Chrome or Edge on desktop. Please type your context in the box below instead.')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicError('Microphone not supported in this browser. Use Chrome or Edge.')
       return
     }
 
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      alert('Microphone access requires a secure (HTTPS) connection.')
-      return
-    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioChunksRef.current = []
 
-    const LANG_MAP: Record<string, string> = {
-      en: 'en-IN', hi: 'hi-IN', ta: 'ta-IN', bn: 'bn-IN',
-      mr: 'mr-IN', kn: 'kn-IN', te: 'te-IN', ml: 'ml-IN',
-    }
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+      mediaRecorderRef.current = recorder
 
-    recognitionRef.current = new SpeechRecognition()
-    recognitionRef.current.continuous = false
-    recognitionRef.current.interimResults = false
-    recognitionRef.current.lang = LANG_MAP[targetLanguage] || 'en-IN'
-
-    recognitionRef.current.onstart = () => setIsListening(true)
-    
-    recognitionRef.current.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript
-      if (setVoicePrompt) setVoicePrompt(transcript)
-      if (setVoiceLanguage) setVoiceLanguage(targetLanguage)
-      setIsListening(false)
-    }
-
-    recognitionRef.current.onerror = (event: any) => {
-      if (event.error === 'not-allowed') {
-        alert('Microphone access was denied. Please allow mic access in your browser settings and try again.')
-      } else {
-        console.error('Speech recognition error', event.error)
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
       }
-      setIsListening(false)
-    }
 
-    recognitionRef.current.onend = () => setIsListening(false)
-    recognitionRef.current.start()
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        setIsRecording(false)
+        setIsTranscribing(true)
+
+        try {
+          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' })
+          const formData = new FormData()
+          formData.append('audio_file', blob, 'recording.webm')
+
+          const token = localStorage.getItem('bhramari_token')
+          const res = await fetch(
+            `${API_BASE}/api/v1/voice/transcribe?language=${targetLanguage}`,
+            {
+              method: 'POST',
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+              body: formData,
+            }
+          )
+          const data = await res.json()
+
+          if (data.transcription) {
+            if (setVoicePrompt) setVoicePrompt(data.transcription)
+            if (setVoiceLanguage) setVoiceLanguage(targetLanguage)
+          } else {
+            setMicError(data.error || 'No speech detected. Please try again.')
+          }
+        } catch (err) {
+          setMicError('Failed to reach the transcription service. Check your connection.')
+        } finally {
+          setIsTranscribing(false)
+        }
+      }
+
+      recorder.start()
+      setIsRecording(true)
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        setMicError('Microphone access denied. Please allow mic access in your browser settings.')
+      } else {
+        setMicError(`Could not access microphone: ${err.message}`)
+      }
+    }
   }
 
   const SAMPLE_PYTHON = `import sqlite3
@@ -387,18 +412,41 @@ public class UserProfileServlet extends HttpServlet {
                   className="w-full bg-bespoke-surface border border-bespoke-border rounded-xl px-4 py-3 text-sm text-bespoke-text focus:outline-none focus:border-bespoke-accent transition-colors resize-none h-20"
                 />
                 <button
-                  onClick={startListening}
-                  className={`absolute bottom-3 right-3 p-2 rounded-full transition-colors ${
-                    isListening 
-                      ? 'bg-red-500/20 text-red-500 animate-pulse' 
+                  onClick={startRecording}
+                  disabled={isTranscribing}
+                  className={`absolute bottom-3 right-3 p-2 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isRecording
+                      ? 'bg-red-500/20 text-red-400 animate-pulse'
+                      : isTranscribing
+                      ? 'bg-amber-500/20 text-amber-400'
                       : 'bg-bespoke-accent/10 text-bespoke-accent hover:bg-bespoke-accent/20'
                   }`}
-                  title="Use Voice Input"
+                  title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Record voice context (powered by Google Speech)'}
+                  aria-label="Toggle voice recording"
                 >
-                  <Microphone size={18} weight={isListening ? "fill" : "duotone"} />
+                  {isRecording ? (
+                    <Stop size={18} weight="fill" />
+                  ) : isTranscribing ? (
+                    <svg className="animate-spin w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <Microphone size={18} weight="duotone" />
+                  )}
                 </button>
               </div>
+              {micError && (
+                <p className="text-xs text-red-400 mt-1 px-1">{micError}</p>
+              )}
+              {isRecording && (
+                <p className="text-xs text-red-400 mt-1 px-1 animate-pulse">Recording... tap the button again to stop.</p>
+              )}
+              {isTranscribing && (
+                <p className="text-xs text-amber-400 mt-1 px-1 animate-pulse">Transcribing with Google Speech...</p>
+              )}
             </div>
+
 
             <div className="flex gap-3 mt-4">
               <input 
