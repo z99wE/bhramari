@@ -512,20 +512,7 @@ def get_current_user(db: Session = Depends(get_db), authorization: str = Header(
 
 # ─── Root Endpoint ────────────────────────────────────────────────────────────
 
-@app.get("/")
-async def root():
-    return {
-        "service": "Bhramari API",
-        "version": "1.0.0",
-        "status": "healthy",
-        "docs": "/docs",
-        "health": "/health",
-        "endpoints": {
-            "auth": "/api/v1/auth/register, /api/v1/auth/login",
-            "submissions": "/api/v1/submissions",
-            "leaderboard": "/api/v1/leaderboard"
-        }
-    }
+
 
 
 @app.get("/health")
