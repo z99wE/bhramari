@@ -465,6 +465,15 @@ app = FastAPI(
     docs_url="/docs", redoc_url="/redoc"
 )
 
+@app.on_event("startup")
+async def startup_event():
+    """Create database tables on startup."""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables ready")
+    except Exception as e:
+        logger.warning(f"DB init skipped (will create on first request): {e}")
+
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 
