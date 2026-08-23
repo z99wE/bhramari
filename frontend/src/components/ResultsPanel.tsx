@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle, Hexagon, Sparkle, SpeakerHigh, StopCircle } from '@phosphor-icons/react'
+import ReactMarkdown from 'react-markdown'
 import type { Submission } from '../types'
 
 interface ResultsPanelProps {
@@ -169,9 +170,9 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
                     <span className="text-gray-300 font-medium">{f.description}</span>
                   </div>
                   {f.suggestion && (
-                    <p className="text-xs text-amber-400/80 mt-1.5 ml-4 font-mono">
-                      Fix: {f.suggestion}
-                    </p>
+                    <div className="text-xs text-amber-400/80 mt-1.5 ml-4 font-mono prose prose-invert prose-xs max-w-none">
+                      Fix: <ReactMarkdown>{f.suggestion}</ReactMarkdown>
+                    </div>
                   )}
                   {f.line && (
                     <p className="text-xs text-gray-600 mt-0.5 ml-4 font-mono">Line {f.line}</p>
