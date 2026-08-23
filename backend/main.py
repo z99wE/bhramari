@@ -56,14 +56,22 @@ logger = logging.getLogger("bhramari")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+# Create tables lazily - only when needed
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables ready")
 
 # Redis client — gracefully degrade if unavailable (e.g. local dev without Redis)
 try:
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=2)
-    logger.info("✅ Redis connected")
-except Exception as e:
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=1)
+    try:
+        redis_client.ping()
+        logger.info("Redis connected")
+    except Exception:
+        redis_client = None
+        logger.warning("Redis unavailable — using in-memory mode")
+except Exception:
     redis_client = None
-    logger.warning(f"⚠️  Redis unavailable ({e}) — pattern caching disabled")
 
 # ─── Models ───────────────────────────────────────────────────────────────────
 
