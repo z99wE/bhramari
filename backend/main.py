@@ -782,6 +782,13 @@ async def transcribe_voice(
         from google.cloud import speech as gcp_speech
 
         audio_bytes = await audio_file.read()
+        filename = audio_file.filename or "recording.webm"
+
+        # Detect encoding from filename — Chrome sends WebM, Firefox sends OGG
+        if "ogg" in filename.lower():
+            encoding = gcp_speech.RecognitionConfig.AudioEncoding.OGG_OPUS
+        else:
+            encoding = gcp_speech.RecognitionConfig.AudioEncoding.WEBM_OPUS
 
         # Language code normalisation (frontend sends 'hi', backend needs 'hi-IN')
         LANG_NORMALISE = {
@@ -794,10 +801,10 @@ async def transcribe_voice(
         speech_client = gcp_speech.SpeechClient()
         audio = gcp_speech.RecognitionAudio(content=audio_bytes)
         config = gcp_speech.RecognitionConfig(
-            encoding=gcp_speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
-            sample_rate_hertz=48000,
+            encoding=encoding,
+            # sample_rate_hertz omitted — GCP auto-detects from WebM/OGG container
             language_code=bcp47_lang,
-            alternative_language_codes=["en-IN"],  # fallback to English
+            alternative_language_codes=["en-IN"],
             enable_automatic_punctuation=True,
         )
         response = speech_client.recognize(config=config, audio=audio)

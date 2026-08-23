@@ -40,12 +40,62 @@ export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, se
   const [micError, setMicError] = useState<string | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const maxRecordingTimerRef = useRef<number | null>(null)
+
+  // Pick best supported MIME type — webm/opus for Chrome, ogg/opus for Firefox
+  const getSupportedMime = () => {
+    const types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+    ]
+    return types.find(t => MediaRecorder.isTypeSupported(t)) || ''
+  }
+
+  const sendAudio = async (chunks: Blob[], mimeType: string) => {
+    setIsTranscribing(true)
+    try {
+      const blob = new Blob(chunks, { type: mimeType || 'audio/webm' })
+      if (blob.size < 1000) {
+        setMicError('Recording was too short or empty. Please speak and try again.')
+        return
+      }
+      const formData = new FormData()
+      const ext = mimeType.includes('ogg') ? 'ogg' : 'webm'
+      formData.append('audio_file', blob, `recording.${ext}`)
+
+      const token = localStorage.getItem('bhramari_token')
+      const res = await fetch(
+        `${API_BASE}/api/v1/voice/transcribe?language=${targetLanguage}`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        }
+      )
+      const data = await res.json()
+
+      if (data.transcription) {
+        if (setVoicePrompt) setVoicePrompt(data.transcription)
+        if (setVoiceLanguage) setVoiceLanguage(targetLanguage)
+        setMicError(null)
+      } else {
+        setMicError(data.error || 'No speech detected. Please speak clearly and try again.')
+      }
+    } catch {
+      setMicError('Failed to reach the transcription service. Check your connection.')
+    } finally {
+      setIsTranscribing(false)
+    }
+  }
 
   // ── GCP Speech-to-Text via MediaRecorder ──────────────────────────────────
   const startRecording = async () => {
     setMicError(null)
     if (isRecording) {
-      // Stop recording — triggers ondataavailable
+      // Manual stop — user clicked button again
+      if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current)
       mediaRecorderRef.current?.stop()
       return
     }
@@ -59,9 +109,12 @@ export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, se
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       audioChunksRef.current = []
 
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
+      const mimeType = getSupportedMime()
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {})
       mediaRecorderRef.current = recorder
 
+      // Collect audio in 250ms chunks — critical, without this ondataavailable
+      // never fires if the track drops before stop() is called
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data)
       }
@@ -69,42 +122,38 @@ export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, se
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop())
         setIsRecording(false)
-        setIsTranscribing(true)
-
-        try {
-          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm;codecs=opus' })
-          const formData = new FormData()
-          formData.append('audio_file', blob, 'recording.webm')
-
-          const token = localStorage.getItem('bhramari_token')
-          const res = await fetch(
-            `${API_BASE}/api/v1/voice/transcribe?language=${targetLanguage}`,
-            {
-              method: 'POST',
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-              body: formData,
-            }
-          )
-          const data = await res.json()
-
-          if (data.transcription) {
-            if (setVoicePrompt) setVoicePrompt(data.transcription)
-            if (setVoiceLanguage) setVoiceLanguage(targetLanguage)
-          } else {
-            setMicError(data.error || 'No speech detected. Please try again.')
-          }
-        } catch (err) {
-          setMicError('Failed to reach the transcription service. Check your connection.')
-        } finally {
-          setIsTranscribing(false)
-        }
+        await sendAudio(audioChunksRef.current, recorder.mimeType)
       }
 
-      recorder.start()
+      // If the browser kills the track (e.g. tab loses focus, timeout),
+      // stop gracefully instead of getting stuck
+      stream.getAudioTracks()[0].onended = () => {
+        if (recorder.state === 'recording') {
+          recorder.stop()
+        }
+        setIsRecording(false)
+        if (maxRecordingTimerRef.current) clearTimeout(maxRecordingTimerRef.current)
+      }
+
+      recorder.onerror = (e: any) => {
+        console.error('MediaRecorder error', e)
+        stream.getTracks().forEach(t => t.stop())
+        setIsRecording(false)
+        setMicError('Recording error. Please try again.')
+      }
+
+      // Start with 250ms timeslice so chunks arrive continuously
+      recorder.start(250)
       setIsRecording(true)
+
+      // Hard 30s safety cap — prevents runaway recording
+      maxRecordingTimerRef.current = window.setTimeout(() => {
+        if (recorder.state === 'recording') recorder.stop()
+      }, 30000)
+
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
-        setMicError('Microphone access denied. Please allow mic access in your browser settings.')
+        setMicError('Microphone access denied. Allow mic access in your browser settings and refresh.')
       } else {
         setMicError(`Could not access microphone: ${err.message}`)
       }
