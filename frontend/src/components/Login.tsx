@@ -43,15 +43,14 @@ export function Login({ onLoginSuccess }: LoginProps) {
         {/* Glow effect */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent blur-sm" />
         
-        <div className="flex flex-col items-center mb-8">
-          <div className="relative mb-4">
-            <Robot size={64} className="text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" weight="duotone" />
-            <ShieldCheck size={24} className="text-emerald-400 absolute -bottom-2 -right-2 bg-bespoke-dark rounded-full p-1" weight="fill" />
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-bespoke-accent/20 rounded-2xl mx-auto flex items-center justify-center mb-4">
+            <Lock size={32} weight="duotone" className="text-bespoke-accent" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent mb-2 text-center">
-            Soloknuckle
-          </h1>
-          <p className="text-bespoke-muted text-center text-sm">
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Bhramari
+          </h2>
+          <p className="text-bespoke-muted text-sm max-w-xs mx-auto">
             Authenticate to access the Autonomous Hive Mind.
           </p>
         </div>

@@ -480,7 +480,7 @@ class SwarmAgentPipeline:
         if not client:
             return []
         system_prompt = """
-        You are Soloknuckle, a strict CI/CD project evaluator.
+        You are Bhramari, a strict CI/CD project evaluator.
         Evaluate the provided codebase/file across these 7 critical domains:
         1. Code Quality (Linting, formatting, TypeScript, complexity)
         2. Testing (Unit tests, E2E tests, coverage)
@@ -627,7 +627,7 @@ async def upload_code(
     db.add(sub); db.commit(); db.refresh(sub)
     
     asyncio.create_task(process_swarm(sub.id, content, "unknown",
-                                       current_user.id, db, target_language,
+                                       current_user.id, target_language,
                                        voice_prompt, voice_language))
     
     return SubmissionResponse(id=sub.id, title=sub.title, source_language=sub.source_language,
@@ -651,7 +651,7 @@ async def submit_code(submission: SubmissionCreate, current_user: User = Depends
         PatternMatcher.ingest_csv(submission.historical_patterns, current_user.id)
     
     asyncio.create_task(process_swarm(sub.id, submission.content, submission.source_language,
-                                       current_user.id, db, submission.target_language,
+                                       current_user.id, submission.target_language,
                                        submission.voice_prompt, submission.voice_language))
     
     return SubmissionResponse(id=sub.id, title=sub.title, source_language=sub.source_language,
@@ -856,10 +856,13 @@ async def voice_review(
 # ─── Background Swarm Processor ──────────────────────────────────────────────
 
 async def process_swarm(submission_id: str, code: str, language: str,
-                        user_id: str, db: Session, target_lang: str = "en",
+                        user_id: str, target_lang: str = "en",
                         voice_prompt: Optional[str] = None, voice_language: Optional[str] = None):
+    db = SessionLocal()
     try:
         sub = db.query(Submission).filter(Submission.id == submission_id).first()
+        if not sub:
+            return
         sub.status = "swarming"
         db.commit()
         
@@ -917,6 +920,8 @@ async def process_swarm(submission_id: str, code: str, language: str,
         if sub:
             sub.status = "failed"
             db.commit()
+    finally:
+        db.close()
 
 
 # ─── Pattern Import Endpoints ─────────────────────────────────────────────────
