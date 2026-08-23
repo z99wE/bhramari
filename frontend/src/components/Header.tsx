@@ -36,7 +36,7 @@ export function Header() {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
 
       {/* Rolling Benefits Ticker */}
-      <div className="overflow-hidden border-b border-white/5 bg-black/20 py-2">
+      <div className="overflow-hidden border-b border-amber-500/10 bg-amber-500/5 py-2">
         <motion.div
           className="flex gap-12 whitespace-nowrap"
           animate={{ x: ['0%', '-50%'] }}
@@ -47,8 +47,8 @@ export function Header() {
           }}
         >
           {tickerContent.map((item, i) => (
-            <span key={i} className="flex items-center gap-3 text-xs text-gray-400 font-medium shrink-0">
-              <span className="w-1 h-1 rounded-full bg-amber-500/70 shrink-0" />
+            <span key={i} className="flex items-center gap-3 text-xs text-amber-900 font-black tracking-wide shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0 animate-pulse" />
               {item}
             </span>
           ))}

@@ -41,9 +41,9 @@ interface SectionHeaderProps {
 export function SectionHeader({ icon, title, subtitle }: SectionHeaderProps) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <span className="text-lg">{icon}</span>
-      <h3 className="font-semibold text-white text-base">{title}</h3>
-      {subtitle && <p className="text-xs text-gray-500 ml-1">{subtitle}</p>}
+      <span className="text-lg text-bespoke-accent">{icon}</span>
+      <h3 className="font-bold text-bespoke-text text-base">{title}</h3>
+      {subtitle && <p className="text-xs text-bespoke-muted ml-1">{subtitle}</p>}
     </div>
   )
 }

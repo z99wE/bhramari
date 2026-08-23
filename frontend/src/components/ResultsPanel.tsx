@@ -345,6 +345,36 @@ export function ResultsPanel({ data }: ResultsPanelProps) {
           </div>
         </div>
       )}
+      {/* Suggested IDE Prompt & Report Preview */}
+      <div className="mt-6 pt-5 border-t border-bespoke-border">
+        <h4 className="font-semibold mb-3 text-sm text-bespoke-text flex items-center gap-2">
+          <Sparkle size={18} className="text-indigo-600" weight="duotone" /> Suggested IDE Prompt (Copy to Cursor/VSCode)
+        </h4>
+        <div className="relative p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 font-mono text-xs text-indigo-900 leading-relaxed mb-4">
+          <button 
+            onClick={() => {
+              const text = `Please act as a senior software engineer. Review the following issues found in the code:\n` + 
+                (data.findings || []).map(f => `- ${f.description} (Suggested fix: ${f.suggestion || ''})`).join('\n') + 
+                `\n\nBased on these findings, rewrite the provided code to be secure, performant, and follow architectural best practices.`;
+              navigator.clipboard.writeText(text);
+              alert("Prompt copied to clipboard!");
+            }}
+            className="absolute top-3 right-3 px-2 py-1 rounded bg-indigo-100 border border-indigo-200 hover:bg-indigo-200 transition-colors text-[10px] font-bold"
+          >
+            Copy Prompt
+          </button>
+          <p className="font-bold mb-2">// Prompt 1: Secure Code Regeneration</p>
+          <p className="text-bespoke-muted select-all">
+            Please act as a senior software engineer. Review the following issues found in the code:<br />
+            {(data.findings || []).slice(0, 3).map((f, i) => (
+              <span key={i}>- {f.description} (Suggested fix: {f.suggestion || ''})<br /></span>
+            ))}
+            ...<br />
+            Based on these findings, rewrite the provided code to be secure, performant, and follow architectural best practices.
+          </p>
+        </div>
+      </div>
+
 
       {/* Rewritten Code Modal */}
       {rewrittenCode && (

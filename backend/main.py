@@ -464,6 +464,7 @@ class SwarmAgentPipeline:
         return {
             "quality_score": score, "percentile": percentile,
             "hive_title": title, "hive_emoji": emoji,
+            "summary": f"Swarm analysis detected {len(all_findings)} issues across domains.",
             "findings": all_findings,
             "strengths": ["Clean structure", "Good naming convention"],
             "improvements": sorted(all_findings, key=lambda x: {"critical":0,"high":1,"medium":2,"low":3}.get(x.get("severity","low"),4))[:5],
@@ -909,12 +910,13 @@ async def process_swarm(submission_id: str, code: str, language: str,
         
         db.commit()
         logger.info(f"Swarm complete: {submission_id} → {review['quality_score']}/10 ({review['hive_title']})")
-        
     except Exception as e:
         logger.error(f"Swarm failed {submission_id}: {e}")
+        db.rollback()
         sub = db.query(Submission).filter(Submission.id == submission_id).first()
-        sub.status = "failed"
-        db.commit()
+        if sub:
+            sub.status = "failed"
+            db.commit()
 
 
 # ─── Pattern Import Endpoints ─────────────────────────────────────────────────

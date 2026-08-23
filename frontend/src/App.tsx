@@ -5,9 +5,8 @@ import { useAuth } from './hooks/useAuth'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { SwarmStream } from './components/SwarmStream'
+import { HiveGapPanel } from './components/HiveGapPanel'
 import { ResultsPanel } from './components/ResultsPanel'
-import { LeaderboardPanel } from './components/LeaderboardPanel'
-
 import { GlassCard, SectionHeader } from './components/GlassCard'
 import { HealthIndicator } from './components/HealthIndicator'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -186,7 +185,7 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4"
             >
-              <LeaderboardPanel />
+              <HiveGapPanel lastResult={lastResult} />
 
               {/* Colony Stats Card */}
               <GlassCard glow="purple" className="space-y-5">
