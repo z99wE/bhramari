@@ -6,7 +6,7 @@
   --bespoke-bg: #F8F4F0;
   --bespoke-surface: #FFFFFF;
   --bespoke-text: #111827;
-  --bespoke-muted: #4B5563;
+  --bespoke-muted: #374151; /* Darkened for better contrast */
   --bespoke-border: #E5E7EB;
   --bespoke-accent: #3B82F6;
 }

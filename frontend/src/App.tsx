@@ -6,8 +6,6 @@ import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { SwarmStream } from './components/SwarmStream'
 import { ResultsPanel } from './components/ResultsPanel'
-import { VoicePanel } from './components/VoicePanel'
-import { PatternsPanel } from './components/PatternsPanel'
 import { LeaderboardPanel } from './components/LeaderboardPanel'
 import { GlassCard, SectionHeader } from './components/GlassCard'
 import { HealthIndicator } from './components/HealthIndicator'
@@ -140,6 +138,9 @@ export default function App() {
                 status={status}
                 error={error}
                 findings={findings}
+                voicePrompt={voicePrompt}
+                setVoicePrompt={setVoicePrompt}
+                setVoiceLanguage={setVoiceLanguage}
               />
 
               {/* Live swarm results with findings */}
@@ -159,11 +160,6 @@ export default function App() {
                 )}
               </AnimatePresence>
 
-              <VoicePanel onVoiceCaptured={(text, lang) => {
-                setVoicePrompt(text)
-                setVoiceLanguage(lang)
-              }} />
-              <PatternsPanel />
             </motion.div>
           ) : (
             <motion.div
