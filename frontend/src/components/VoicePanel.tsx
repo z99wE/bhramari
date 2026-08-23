@@ -1,27 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 
-const VOICE_DEMOS: Record<string, { native: string; translated: string }> = {
-  'hi-IN': {
-    native: 'भामाई इस Python कोड में security issues check kar — especially SQL injection',
-    translated: 'Bhramari check security issues in this Python code — especially SQL injection',
-  },
-  'ta-IN': {
-    native: 'இந்த code review பண்ணு, security மற்றும் performance காண்க',
-    translated: 'Review this code, check security and performance',
-  },
-  'bn-IN': {
-    native: 'এই কোডে security vulnerability আছো কিনা দেখো',
-    translated: 'Check if this code has security vulnerabilities',
-  },
-  'mr-IN': {
-    native: 'हा कोड रि viu करा, सुरक्षितता तपासा',
-    translated: 'Review this code, check security',
-  },
-  'en': {
-    native: 'Review this Python code for SQL injection and performance issues',
-    translated: 'Review this Python code for SQL injection and performance issues',
-  },
+
+// Add global TypeScript definitions for Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
 }
 
 const LANG_LABELS: Record<string, string> = {
@@ -29,31 +15,62 @@ const LANG_LABELS: Record<string, string> = {
   'ta-IN': 'தமிழ்',
   'bn-IN': 'বাংলা',
   'mr-IN': 'मराठी',
-  'en': 'English',
+  'en-IN': 'English',
 }
 
-export function VoicePanel() {
+interface VoicePanelProps {
+  onVoiceCaptured?: (text: string, language: string) => void;
+}
+
+export function VoicePanel({ onVoiceCaptured }: VoicePanelProps) {
   const [selectedLang, setSelectedLang] = useState('hi-IN')
   const [isListening, setIsListening] = useState(false)
   const [result, setResult] = useState<string | null>(null)
 
-  const demo = VOICE_DEMOS[selectedLang]
 
   const handleListen = () => {
-    setIsListening(true)
-    setResult(null)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    
+    if (!SpeechRecognition) {
+      setResult('<span class="text-red-400 font-medium">Error: Speech Recognition API is not supported in this browser. Please use Chrome or Edge.</span>')
+      return
+    }
 
-    setTimeout(() => {
-      setIsListening(false)
+    const recognition = new SpeechRecognition()
+    recognition.lang = selectedLang
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      setResult(null)
+    }
+
+    recognition.onresult = (event: any) => {
+      const speechResult = event.results[0][0].transcript
+      const confidence = Math.round(event.results[0][0].confidence * 100)
+      
       setResult(`
-        <span class="text-amber-400 font-medium">🗣️ Spoken (${LANG_LABELS[selectedLang]})</span><br/>
-        <span class="text-white">${demo.native}</span><br/><br/>
-        <span class="text-cyan-400 font-medium">🔄 Google Translation</span><br/>
-        <span class="text-gray-300">${demo.translated}</span><br/><br/>
-        <span class="text-green-400 font-medium">🐝 Swarm Triggered</span><br/>
-        <span class="text-gray-400 text-xs">security_drone + logic_wasp + cultural_drone activated</span>
+        <span class="text-amber-400 font-medium">🗣️ Dictation Captured (${LANG_LABELS[selectedLang]})</span><br/>
+        <span class="text-white">${speechResult}</span><br/><br/>
+        <span class="text-gray-400 text-xs">Confidence: ${confidence}%</span>
       `)
-    }, 2000)
+      
+      if (onVoiceCaptured) {
+        onVoiceCaptured(speechResult, selectedLang)
+      }
+    }
+
+    recognition.onerror = (event: any) => {
+      setIsListening(false)
+      setResult(`<span class="text-red-400 font-medium">Error: ${event.error}</span><br/><span class="text-gray-400 text-xs">Please ensure you have granted microphone permissions.</span>`)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognition.start()
   }
 
   return (

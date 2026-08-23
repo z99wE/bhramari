@@ -41,6 +41,8 @@ export const api = {
     source_language: string
     description?: string
     target_language?: string
+    voice_prompt?: string
+    voice_language?: string
   }) => request<{ id: string }>('/api/v1/submissions', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -80,4 +82,7 @@ export const api = {
 
   // Health
   health: () => request<{ status: string; service: string; timestamp: string }>('/health'),
+
+  // Stats
+  colonyStats: () => request<{ total_reviews: number; patterns_learned: number; languages_supported: number; agents_active: number }>('/api/v1/stats/colony'),
 }

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { GlassCard, SectionHeader } from './GlassCard'
-import { ShieldCheck, Lightning, Sparkle, Globe, Crown, Code, FileArrowUp, FolderOpen, Bug } from '@phosphor-icons/react'
+import { ShieldCheck, Lightning, Sparkle, Globe, Crown, Code, FileArrowUp, FolderOpen, Bug, TreeStructure } from '@phosphor-icons/react'
 
 const AGENTS = [
   { name: 'security_drone', icon: <ShieldCheck weight="duotone" />, label: 'Security', color: 'from-red-500/20 to-orange-500/20', border: 'border-red-500/30' },
@@ -9,6 +9,7 @@ const AGENTS = [
   { name: 'style_bee', icon: <Sparkle weight="duotone" />, label: 'Style', color: 'from-amber-500/20 to-yellow-500/20', border: 'border-amber-500/30' },
   { name: 'cultural_drone', icon: <Globe weight="duotone" />, label: 'Culture', color: 'from-purple-500/20 to-pink-500/20', border: 'border-purple-500/30' },
   { name: 'growth_queen', icon: <Crown weight="duotone" />, label: 'Growth', color: 'from-emerald-500/20 to-teal-500/20', border: 'border-emerald-500/30' },
+  { name: 'senior_architect', icon: <TreeStructure weight="duotone" />, label: 'Architect', color: 'from-indigo-500/20 to-blue-500/20', border: 'border-indigo-500/30' },
 ]
 
 interface HeroProps {
@@ -21,10 +22,12 @@ interface HeroProps {
   setLanguage: (v: string) => void
   setTargetLanguage: (v: string) => void
   isSwarming: boolean
+  status: string
+  error: string | null
   findings: any[]
 }
 
-export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, setCode, setLanguage, setTargetLanguage, isSwarming, findings }: HeroProps) {
+export function Hero({ onSwarm, onFileUpload, code, language, targetLanguage, setCode, setLanguage, setTargetLanguage, isSwarming, status, error, findings }: HeroProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -317,6 +320,14 @@ def process_items(items):
                     ))}
                   </div>
                   <p className="text-xs text-bespoke-muted animate-pulse">Five agents reviewing your code...</p>
+                </div>
+              ) : status === 'failed' || error ? (
+                <div className="text-center py-12 flex flex-col items-center">
+                  <div className="text-3xl mb-2 text-red-500">
+                    ⚠️
+                  </div>
+                  <p className="text-sm font-medium text-red-400">Swarm Analysis Failed</p>
+                  <p className="text-xs mt-1 text-red-400/80 max-w-xs">{error || 'The swarm failed to process this code. It may have been blocked by safety filters or an internal error occurred.'}</p>
                 </div>
               ) : (
                 <div className="text-center py-12 text-bespoke-muted flex flex-col items-center">

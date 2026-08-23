@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from './services/api'
 import { useSwarm } from './hooks/useSwarm'
+import { useAuth } from './hooks/useAuth'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
 import { SwarmStream } from './components/SwarmStream'
@@ -22,8 +23,23 @@ export default function App() {
   const [submissionId, setSubmissionId] = useState<string | null>(null)
   const [lastResult, setLastResult] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<'review' | 'colony'>('review')
+  const [stats, setStats] = useState<{ total_reviews: number; patterns_learned: number; languages_supported: number; agents_active: number } | null>(null)
+  const [voicePrompt, setVoicePrompt] = useState<string | undefined>(undefined)
+  const [voiceLanguage, setVoiceLanguage] = useState<string | undefined>(undefined)
 
-  const { status, findings, submission } = useSwarm(submissionId)
+  const { status, findings, submission, error } = useSwarm(submissionId)
+  const { isLoggedIn, login } = useAuth()
+
+  // Auto-login for hackathon instant usability
+  useEffect(() => {
+    if (!isLoggedIn && !localStorage.getItem('bhramari_token')) {
+      const anonId = Math.random().toString(36).substring(2, 8)
+      login(`anon_${anonId}@example.com`, `anon_${anonId}`)
+    }
+    
+    // Fetch initial stats
+    api.colonyStats().then(setStats).catch(console.error)
+  }, [isLoggedIn, login])
 
   const isSwarming = status === 'swarming'
 
@@ -38,8 +54,13 @@ export default function App() {
         title: 'Quick Review',
         content: userCode,
         source_language: userLang,
+        target_language: targetLanguage,
+        voice_prompt: voicePrompt,
+        voice_language: voiceLanguage,
       })
       setSubmissionId(id)
+      setVoicePrompt(undefined)
+      setVoiceLanguage(undefined)
     } catch (e) {
       console.error('Submit failed', e)
     }
@@ -116,6 +137,8 @@ export default function App() {
                 setLanguage={(v) => setLanguage(v as Language)}
                 setTargetLanguage={setTargetLanguage}
                 isSwarming={isSwarming}
+                status={status}
+                error={error}
                 findings={findings}
               />
 
@@ -136,7 +159,10 @@ export default function App() {
                 )}
               </AnimatePresence>
 
-              <VoicePanel />
+              <VoicePanel onVoiceCaptured={(text, lang) => {
+                setVoicePrompt(text)
+                setVoiceLanguage(lang)
+              }} />
               <PatternsPanel />
             </motion.div>
           ) : (
@@ -156,10 +182,10 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { label: 'Total Reviews', value: '—', icon: <FileText size={28} className="mx-auto text-bespoke-accent" /> },
-                    { label: 'Patterns Learned', value: '8', icon: <Brain size={28} className="mx-auto text-bespoke-accent" /> },
-                    { label: 'Languages Supported', value: '13+', icon: <Globe size={28} className="mx-auto text-bespoke-accent" /> },
-                    { label: 'Agents Active', value: '5', icon: <Robot size={28} className="mx-auto text-bespoke-accent" /> },
+                    { label: 'Total Reviews', value: stats?.total_reviews ?? '—', icon: <FileText size={28} className="mx-auto text-bespoke-accent" /> },
+                    { label: 'Patterns Learned', value: stats?.patterns_learned ?? '—', icon: <Brain size={28} className="mx-auto text-bespoke-accent" /> },
+                    { label: 'Languages Supported', value: stats ? `${stats.languages_supported}+` : '—', icon: <Globe size={28} className="mx-auto text-bespoke-accent" /> },
+                    { label: 'Agents Active', value: stats?.agents_active ?? '—', icon: <Robot size={28} className="mx-auto text-bespoke-accent" /> },
                   ].map((stat, i) => (
                     <div key={i} className="p-4 rounded-xl bg-bespoke-surface border border-bespoke-border text-center">
                       <div className="mb-2">{stat.icon}</div>

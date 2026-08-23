@@ -92,6 +92,30 @@ Bhramari/
 ├── .dockerignore
 └── README.md
 ```
+---
+
+## The Four Pillars of Bhramari
+
+Bhramari is built from the ground up to ensure enterprise-grade reliability and usability. Our architecture and swarm intelligence prioritize:
+
+### 1. Code Quality
+* **Multi-Dimensional Analysis:** The swarm doesn't just look for syntax errors; specialized agents (Logic Wasp, Style Bee, Cultural Drone) evaluate code for readability, idiomatic practices, and cultural nuances (e.g. Hinglish variable names).
+* **SOLID Architecture Focus:** The Senior Architect agent specifically evaluates submissions against SOLID principles, ensuring that code is maintainable, decoupled, and scalable.
+
+### 2. Efficiency
+* **Concurrent Agent Processing:** By utilizing `asyncio.gather` on the backend, the Vertex AI Swarm evaluates code across 6 different dimensions simultaneously, reducing review turnaround times from minutes to seconds.
+* **Edge Caching & Cloud CDN:** The React frontend is served via Cloud CDN, ensuring ultra-low latency for global users.
+* **Native Web Speech API:** Voice transcription is handled natively by the browser, eliminating the need for slow, costly network trips for basic speech-to-text processing.
+
+### 3. Security
+* **Zero Trust & Secret Manager:** The application uses Google Secret Manager for all sensitive credentials; absolutely no secrets are hardcoded.
+* **Specialized Security Drone:** A dedicated security agent evaluates code specifically for OWASP Top 10 vulnerabilities, race conditions, and injection flaws.
+* **Infrastructure Security:** Protected by Cloud Armor DDoS mitigation and WAF, ensuring the API cannot be abused or overwhelmed.
+
+### 4. Accessibility
+* **Voice-First Multi-Lingual Interface:** Users can speak their instructions natively in Hindi, Tamil, Bengali, Marathi, or English. The platform captures this and injects it as context for the code review.
+* **High Contrast UI:** The Astryx design system uses high-contrast neon text against deep dark backgrounds, ensuring readability.
+* **AEO & SEO Optimized:** Semantic HTML and ARIA labels are utilized throughout the frontend to ensure screen reader compatibility and robust discoverability.
 
 ---
 

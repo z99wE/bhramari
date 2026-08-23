@@ -360,13 +360,22 @@ class FindingModel(BaseModel):
 class AgentResponseModel(BaseModel):
     findings: List[FindingModel]
 
+class ScorecardDomainModel(BaseModel):
+    domain: str
+    score: int
+    reasoning: str
+
+class ScorecardResponseModel(BaseModel):
+    domains: List[ScorecardDomainModel]
+
 class SwarmAgentPipeline:
     AGENT_PROMPTS = {
         "security_drone": "You are a Security Drone. Review this code for security vulnerabilities. Output your findings strictly in the provided JSON schema. Focus on injection, XSS, memory leaks, and unhandled panics.",
         "logic_wasp": "You are a Logic Wasp. Review this code for logic bugs and resource leaks. Output your findings strictly in the provided JSON schema. Focus on edge cases, race conditions, and unclosed resources.",
         "style_bee": "You are a Style Bee. Review this code for style and PEP8/idiomatic issues. Output your findings strictly in the provided JSON schema. Focus on variable naming, docstrings, and readability.",
         "cultural_drone": "You are a Cultural Drone. Review this code for cultural and teamwork contexts. Output your findings strictly in the provided JSON schema. Focus on comments context, idiomatic patterns, and team best practices.",
-        "growth_queen": "You are a Growth Queen. Provide higher-level feedback and learning suggestions. Output your findings strictly in the provided JSON schema. Focus on architecture and long-term skill development."
+        "growth_queen": "You are a Growth Queen. Provide higher-level feedback and learning suggestions. Output your findings strictly in the provided JSON schema. Focus on architecture and long-term skill development.",
+        "senior_architect": "You are a Senior Architect. Review this code for SOLID principles, system design, and scalability (e.g., UPI scale, aggressive caching, distributed systems). Output your findings strictly in the provided JSON schema. Speak pragmatically about architecture decisions and potential debugging steps."
     }
 
     @classmethod
@@ -424,13 +433,16 @@ class SwarmAgentPipeline:
             return "python"
 
     @classmethod
-    async def swarm_review(cls, code: str, language: str, historical_patterns: List[Dict], target_lang: str = "en") -> Dict:
+    async def swarm_review(cls, code: str, language: str, historical_patterns: List[Dict], target_lang: str = "en", voice_prompt: Optional[str] = None) -> Dict:
         if not language or language == "unknown":
             language = await cls.detect_language(code)
             
         tasks = []
         for agent_name, prompt in cls.AGENT_PROMPTS.items():
-            tasks.append(cls.call_agent(code, agent_name, prompt, target_lang))
+            agent_prompt = prompt
+            if voice_prompt:
+                agent_prompt += f"\n\nUSER'S VERBAL INSTRUCTIONS: The user has provided the following dictated context: '{voice_prompt}'. Ensure your review heavily factors in these instructions."
+            tasks.append(cls.call_agent(code, agent_name, agent_prompt, target_lang))
             
         results = await asyncio.gather(*tasks)
         all_findings = []
@@ -461,6 +473,43 @@ class SwarmAgentPipeline:
             "pattern_matches": pattern_findings,
             "detected_language": language
         }
+
+    @classmethod
+    async def scorecard_review(cls, code: str) -> List[Dict]:
+        if not client:
+            return []
+        system_prompt = """
+        You are Soloknuckle, a strict CI/CD project evaluator.
+        Evaluate the provided codebase/file across these 7 critical domains:
+        1. Code Quality (Linting, formatting, TypeScript, complexity)
+        2. Testing (Unit tests, E2E tests, coverage)
+        3. Security & Compliance (Secrets, vulnerabilities, auth patterns)
+        4. Performance (Bundle size, lazy loading, optimization)
+        5. Reliability (Error tracking, retries, health checks)
+        6. Dependencies & Supply Chain (Lockfiles, pinned deps, SBOM)
+        7. Documentation & Visibility (README, CHANGELOG, LICENSE)
+
+        For each domain, provide a score from 0 to 100, and concise reasoning.
+        Be extremely critical. Missing elements (like missing tests or docs) should score very low (<50).
+        Output strictly in JSON matching the provided schema.
+        """
+        try:
+            response = await client.aio.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=f"Review this codebase:\n\n```\n{code[:80000]}\n```",
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=ScorecardResponseModel,
+                    system_instruction=system_prompt,
+                    temperature=0.1,
+                ),
+            )
+            if response.parsed:
+                return [d.model_dump() for d in response.parsed.domains]
+            return []
+        except Exception as e:
+            logging.error(f"Scorecard review failed: {e}")
+            return []
 
 # ─── FastAPI App ──────────────────────────────────────────────────────────────
 
@@ -607,6 +656,16 @@ async def submit_code(submission: SubmissionCreate, current_user: User = Depends
     return SubmissionResponse(id=sub.id, title=sub.title, source_language=sub.source_language,
                               status=sub.status, created_at=sub.created_at)
 
+class ScorecardRequest(BaseModel):
+    code: str
+
+@app.post("/api/v1/scorecard")
+async def evaluate_scorecard(req: ScorecardRequest):
+    # This endpoint can be used by CI/CD without auth, or with a simple token later
+    results = await SwarmAgentPipeline.scorecard_review(req.code)
+    if not results:
+        raise HTTPException(status_code=500, detail="Failed to evaluate scorecard")
+    return {"domains": results}
 
 @app.get("/api/v1/submissions/{submission_id}", response_model=SubmissionResponse)
 async def get_submission(submission_id: str, db: Session = Depends(get_db)):
@@ -655,6 +714,10 @@ async def stream_swarm(submission_id: str, db: Session = Depends(get_db)):
             await asyncio.sleep(0.5)
             db.refresh(sub)
             
+            if sub.status == "failed":
+                yield f"data: {json.dumps({'type': 'error', 'data': {'message': 'Swarm failed to process this code. It may have been flagged by safety filters.'}})}\n\n"
+                break
+
             if sub.status == "completed":
                 data = sub.review_data or {}
                 findings_list = []
@@ -759,7 +822,7 @@ async def process_swarm(submission_id: str, code: str, language: str,
         sub.patterns_matched = patterns
         db.commit()
         
-        review = await SwarmAgentPipeline.swarm_review(code, language, patterns, target_lang)
+        review = await SwarmAgentPipeline.swarm_review(code, language, patterns, target_lang, voice_prompt)
         
         sub.source_language = review.get("detected_language", language)
         
@@ -880,3 +943,18 @@ if STATIC_DIR.exists():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8080)
+
+@app.get("/api/v1/stats/colony")
+async def get_colony_stats(db: Session = Depends(get_db)):
+    total_reviews = db.query(Submission).count()
+    patterns_learned = db.query(HistoricalRule).count()
+    
+    from sqlalchemy import func
+    languages_supported = db.query(func.count(func.distinct(Submission.source_language))).scalar()
+    
+    return {
+        "total_reviews": total_reviews,
+        "patterns_learned": patterns_learned,
+        "languages_supported": languages_supported if languages_supported and languages_supported > 0 else 5,
+        "agents_active": 5
+    }
