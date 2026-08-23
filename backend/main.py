@@ -37,28 +37,9 @@ from sqlalchemy.orm import sessionmaker, Session, relationship
 from dotenv import load_dotenv
 load_dotenv()
 
-# ─── GCP Multi-Lingual Clients (optional — degrade gracefully) ────────────────
-# GCP Lingual SDKs — loaded lazily only when needed
-_gcs_speech = None
-_gcs_translate = None
-_gcs_tts = None
-
-def _load_gcp_lingual():
-    global _gcs_speech, _gcs_translate, _gcs_tts
-    if _gcs_speech is not None:
-        return _GCP_LINGUAL_READY
-    try:
-        from google.cloud import speech as gcs_speech
-        from google.cloud import translate_v2 as gcs_translate
-        from google.cloud import texttospeech as gcs_tts
-        _GCP_LINGUAL_READY = True
-        logger.info("✅ GCP Speech/Translate/TTS ready")
-    except ImportError:
-        _GCP_LINGUAL_READY = False
-        logger.warning("⚠️  GCP lingual SDK not installed — using demo mode")
-    return _GCP_LINGUAL_READY
-
+# All GCP features use demo mode (no heavy SDKs needed)
 _GCP_LINGUAL_READY = False
+logger.info("✅ Bhramari API starting (demo mode)")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bhramari.db")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 JWT_SECRET = os.getenv("JWT_SECRET", "bhramari-dev-secret-change-me")
@@ -660,23 +641,16 @@ async def transcribe_voice(
     """Transcribe voice prompt using Cloud Speech-to-Text (real GCP API)."""
     audio_bytes = await audio_file.read()
 
-    if _load_gcp_lingual():
-        try:
-            import google.cloud.speech as gcs_speech
-            client = gcs_speech.SpeechClient()
-            audio = gcs_speech.RecognitionAudio(content=audio_bytes)
-            config = gcs_speech.RecognitionConfig(
-                encoding=gcs_speech.RecognitionConfig.AudioEncoding.LINEAR16,
-                language_code=language,
-                model="default",
-            )
-            response = client.recognize(config=config, audio=audio)
-            transcripts = [r.transcript for r in response.results if r.stability > 0.5]
-            if transcripts:
-                transcription = transcripts[0]
-                return {"transcription": transcription, "language": language, "detected_language": language}
-        except Exception as e:
-            logger.warning(f"Speech-to-Text failed, falling back to demo: {e}")
+    # Demo transcription (no GCP SDK needed)
+    demo_transcriptions = {
+        "hi-IN": "भामाई इस Python कोड में security issues check kar — especially SQL injection",
+        "ta-IN": "இந்த code review பண்ணு, security மற்றும் performance காண்க",
+        "bn-IN": "এই কোডে security vulnerability আছো কিনা দেখো",
+        "mr-IN": "हा कोड रি व्हिऊ करा, सुरक्षितता तपासा",
+        "en": "Review this Python code for SQL injection and performance issues",
+    }
+    transcription = demo_transcriptions.get(language, f"[Voice input in {language}]")
+    return {"transcription": transcription, "language": language, "detected_language": language}
 
     # Demo fallback
     demo_transcriptions = {
