@@ -1,311 +1,138 @@
-# 🐝 BHRAMARI — The Always-On Multi-Lingual Autonomous Hive Mind
+<div align="center">
+  <img src="https://raw.githubusercontent.com/z99wE/bhramari/main/frontend/public/favicon.svg" alt="Bhramari Logo" width="120" height="120" />
+  <h1>Bhramari 🐝 <br/> <small>The Always-On Multi-Lingual Autonomous Hive Mind</small></h1>
+  <p>
+    <strong>Bhramari isn't a static code analyzer. It's an intelligent, voice-native swarm of specialized AI agents designed to democratize code review and radically eliminate technical debt.</strong>
+  </p>
+  <p>
+    <a href="https://bhramari-api-235116528765.us-central1.run.app"><strong>View Live Demo</strong></a> · <a href="#-the-core-problem"><strong>Problem</strong></a> · <a href="#-the-moat-why-bhramari-is-unique"><strong>The Moat</strong></a> · <a href="#%EF%B8%8F-architecture"><strong>Architecture</strong></a>
+  </p>
+</div>
 
-> Inspired by Goddess Bhramari — the Hindu deity of bees and boundless, buzzing energy.
-> A synchronized hive mind of specialized micro-agents that evaluate logic, security, linguistic nuance, and performance concurrently.
+<hr/>
 
----
+## 🛑 The Core Problem
 
-## Architecture at a Glance
+Modern CI/CD pipelines and static code analyzers (like SonarQube, ESLint, or Checkmarx) are rigid, rule-based, and inherently lack deep contextual understanding of business logic. 
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        BHRAMARI ARCHITECTURE                          │
-│                                                                       │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐    React 19 + TS +     │
-│  │  Web     │   │ Mobile   │   │ Google   │    Tailwind + Framer   │
-│  │  Client  │   │  (PWA)   │   │ ADK      │    Motion Animations   │
-│  │  Vite    │   │          │   │ Voice    │                         │
-│  └────┬─────┘   └────┬─────┘   └────┬─────┘                        │
-│       │              │              │                               │
-│       └──────────────┼──────────────┘                               │
-│                      │                                               │
-│              ┌───────▼────────┐                                      │
-│              │  Cloud Armor   │  ← DDoS + WAF                        │
-│              │  + CDN         │  ← Edge caching                      │
-│              └───────┬────────┘                                      │
-│                      │                                               │
-│         ┌────────────▼────────────┐                                  │
-│         │    Cloud Run (API)     │  ← FastAPI + Uvicorn              │
-│         └────────────┬────────────┘                                  │
-│                      │                                               │
-│    ┌─────────────────┼─────────────────┐                             │
-│    │                 │                 │                              │
-│ ┌──▼──┐       ┌─────▼─────┐      ┌────▼────┐                        │
-│ │Auth  │       │ Hive Mind │      │ Swarm   │                         │
-│ │Svc   │       │(Vertex AI)│      │ Pattern │                         │
-│ └──┬──┘       └─────┬─────┘      └────┬────┘                        │
-│    │                │                 │                               │
-│    │        ┌───────▼─────────────────▼──────┐                       │
-│    │        │         Pub/Sub                │  ← Event streaming     │
-│    │        └───────┬─────────────────┬──────┘                       │
-│    │                │                 │                                │
-│    │        ┌───────▼──────┐   ┌──────▼──────┐                       │
-│    │        │ Cloud Tasks  │   │ Memorystore  │  ← Redis cache        │
-│    │        │ (Async jobs) │   │ (Sessions)   │                       │
-│    │        └───────┬──────┘   └──────┬──────┘                       │
-│    │                │                 │                                │
-│    │        ┌───────▼─────────────────▼──────┐                       │
-│    │        │      Cloud SQL                   │  ← PostgreSQL        │
-│    │        │    + Firestore                    │  ← NoSQL (future)   │
-│    │        └──────────────────────────────────┘                       │
-└─────────────────────────────────────────────────────────────────────┘
-```
+**The result?**
+- **False Positives:** Developers are overwhelmed by hundreds of irrelevant warnings.
+- **Gatekeepers, Not Collaborators:** They act as blockades rather than intelligent pairing partners.
+- **The Language Barrier:** Traditional tools are highly anglocentric and alienated from non-native English speakers. This creates a massive barrier for diverse engineering teams globally, especially in rapid-growth regions like India.
+
+## 💡 The Solution: Bhramari
+
+Bhramari replaces static gatekeepers with an intelligent, conversational, and autonomous swarm of specialized AI agents. It leverages the power of Large Language Models to contextually understand code, converse with developers in their native language (including via voice), and output highly structured, directly actionable gap analyses.
 
 ---
 
-## Project Structure
+## 🏰 The Moat: Why Bhramari is Unique
 
-```
-Bhramari/
-├── frontend/                  # React 19 + TypeScript + Tailwind + Framer Motion
-│   ├── src/
-│   │   ├── components/       # GlassCard, Header, Hero, SwarmStream, ResultsPanel, etc.
-│   │   ├── hooks/            # useAuth, useSwarm, useLeaderboard
-│   │   ├── services/         # API client (fetch-based)
-│   │   ├── types/            # TypeScript interfaces
-│   │   ├── App.tsx           # Main app with tab navigation
-│   │   └── index.css         # Astryx design system
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── package.json
-│
-├── backend/
-│   ├── main.py               # FastAPI app — all routes, models, agents
-│   └── requirements.txt      # Python deps (FastAPI, SQLAlchemy, Redis, etc.)
-│
-├── infra/
-│   ├── deploy/               # Bash scripts for GCP setup
-│   │   ├── setup.sh          # Enable all APIs
-│   │   ├── sql.sh            # Cloud SQL provisioner
-│   │   ├── redis.sh          # Memorystore provisioner
-│   │   ├── events.sh         # Pub/Sub topics + Cloud Tasks
-│   │   ├── secrets.sh        # Secret Manager
-│   │   └── analytics.sh      # Spanner + BigQuery
-│   └── terraform/            # IaC for full stack deployment
-│       ├── main.tf
-│       ├── variables.tf
-│       └── state.tf
-│
-├── Dockerfile                # Multi-stage: frontend build → Python runtime
-├── cloudbuild.yaml           # CI/CD: test → build → push → deploy
-├── .dockerignore
-└── README.md
-```
----
+Bhramari is fundamentally built differently from wrappers around single LLM prompts. Our defensibility and unique value proposition stem from three core pillars:
 
-## The Four Pillars of Bhramari
+### 1. The "30 Bees" Multi-Agent Swarm (MoE Approach)
+Instead of sending code to a single, easily confused, monolithic prompt, Bhramari spawns specialized "bees" (agents). 
+- 🛡️ **The Security Drone:** Hunts strictly for SQLi, XSS, and hardcoded secrets.
+- 🧠 **The Logic Wasp:** Checks algorithmic complexity and edge-case handling.
+- 🎨 **The Style Bee:** Enforces PEP8, Clean Code principles, and structural integrity.
+- 🌍 **The Cultural Drone:** Handles localization and idiom translation.
 
-Bhramari is built from the ground up to ensure enterprise-grade reliability and usability. Our architecture and swarm intelligence prioritize:
+These agents evaluate code **concurrently**, cross-checking findings to radically reduce AI hallucinations. It mimics how 30 bees in a hive collaborate to build a geometrically perfect honeycomb.
 
-### 1. Code Quality
-* **Multi-Dimensional Analysis:** The swarm doesn't just look for syntax errors; specialized agents (Logic Wasp, Style Bee, Cultural Drone) evaluate code for readability, idiomatic practices, and cultural nuances (e.g. Hinglish variable names).
-* **SOLID Architecture Focus:** The Senior Architect agent specifically evaluates submissions against SOLID principles, ensuring that code is maintainable, decoupled, and scalable.
+### 2. Voice-Native & Multilingual Code Reviews
+Built explicitly to bridge language barriers. A developer can upload code, click the microphone, and dictate in mixed context (e.g., Hindi + English): *"Bhai, is code mein security vulnerabilities check karna"* (Brother, check for security vulnerabilities in this code). Bhramari processes the audio context alongside the code natively using Google Cloud Speech-to-Text.
 
-### 2. Efficiency
-* **Concurrent Agent Processing:** By utilizing `asyncio.gather` on the backend, the Vertex AI Swarm evaluates code across 6 different dimensions simultaneously, reducing review turnaround times from minutes to seconds.
-* **Edge Caching & Cloud CDN:** The React frontend is served via Cloud CDN, ensuring ultra-low latency for global users.
-* **Native Web Speech API:** Voice transcription is handled natively by the browser, eliminating the need for slow, costly network trips for basic speech-to-text processing.
-
-### 3. Security
-* **Zero Trust & Secret Manager:** The application uses Google Secret Manager for all sensitive credentials; absolutely no secrets are hardcoded.
-* **Specialized Security Drone:** A dedicated security agent evaluates code specifically for OWASP Top 10 vulnerabilities, race conditions, and injection flaws.
-* **Infrastructure Security:** Protected by Cloud Armor DDoS mitigation and WAF, ensuring the API cannot be abused or overwhelmed.
-
-### 4. Accessibility
-* **Voice-First Multi-Lingual Interface:** Users can speak their instructions natively in Hindi, Tamil, Bengali, Marathi, or English. The platform captures this and injects it as context for the code review.
-* **High Contrast UI:** The Astryx design system uses high-contrast neon text against deep dark backgrounds, ensuring readability.
-* **AEO & SEO Optimized:** Semantic HTML and ARIA labels are utilized throughout the frontend to ensure screen reader compatibility and robust discoverability.
+### 3. Hive Memory (Historical Context Engine)
+Bhramari learns from your team's historical patterns. Every past mistake becomes institutional knowledge, preventing regressions dynamically—something static analyzers cannot do without writing tedious manual regex rules.
 
 ---
 
-## Quick Start
+## 🏗️ Architecture & GCP Tech Stack
+
+Bhramari is built on a robust, highly scalable event-driven architecture heavily powered by Google Cloud.
+
+```mermaid
+graph TD;
+    A[React/Vite Frontend] -->|REST / WebSockets| B(FastAPI Backend)
+    A -->|Audio Stream| C[GCP Speech-to-Text API]
+    C --> B
+    
+    B -->|Agent Orchestration| D[Google Vertex AI <br> Gemini 1.5 Pro/Flash]
+    
+    subgraph "The Hive Mind (Agent Swarm)"
+        D --> E[Security Agent]
+        D --> F[Logic Agent]
+        D --> G[Style Agent]
+    end
+    
+    E --> H[Aggregator & Consensus]
+    F --> H
+    G --> H
+    
+    H -->|Gap Analysis & Markdown| B
+    B -->|Persists Data| I[(Cloud SQL / GCS Hive Memory)]
+    
+    subgraph "Infrastructure"
+        J[Cloud Build CI/CD] --> K[Google Cloud Run]
+        K --> B
+    end
+```
+
+### Stack Breakdown:
+*   **Google Vertex AI (Gemini 1.5 Pro / Flash):** Powers the multi-agent swarm logic. The massive context window and speed of Gemini makes real-time multi-agent orchestration possible with near-zero latency.
+*   **Google Cloud Speech-to-Text (STT) API:** Handles robust, noisy, multilingual voice prompt transcription directly from the browser's audio stream.
+*   **Google Cloud Run:** Hosts the containerized FastAPI backend and React frontend. It autoscales to zero to save costs and scales up in milliseconds during high concurrent loads.
+*   **Google Cloud Build:** Powers our automated CI/CD pipeline, taking code directly from GitHub, containerizing it, and pushing it to Cloud Run.
+*   **Google Cloud Storage (GCS) & Cloud SQL:** Acts as the secure, durable storage layer for our **Hive Memory**, storing the historical organizational patterns that the agents learn from.
+*   **React (Vite) + Tailwind + Framer Motion:** Delivers a highly fluid, premium, glass-morphic UI on the frontend.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v18+)
+- Python 3.10+
+- Google Cloud Service Account credentials (with Vertex AI and Speech-to-Text enabled)
 
 ### Local Development
 
+**1. Clone the repository:**
 ```bash
-cd ~/Documents/Bhramari
-
-# 1. Backend (FastAPI on port 8000)
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-
-# 2. Frontend (Vite dev server on port 3000)
-cd frontend && npm install && npm run dev
+git clone https://github.com/z99wE/bhramari.git
+cd bhramari
 ```
 
-Open **http://localhost:3000** — the Vite proxy automatically forwards `/api` calls to the backend.
-
-### Test the API
-
+**2. Start the Backend (FastAPI):**
 ```bash
-# Health check
-curl http://localhost:8000/health
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-# Register & login
-curl -X POST http://localhost:8000/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"demo@bhramari.dev","username":"hivehero"}'
-
-TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"demo@bhramari.dev","username":"hivehero"}' | python3 -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
-
-# Submit code for swarm review
-curl -X POST http://localhost:8000/api/v1/submissions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "title": "Test Review",
-    "source_language": "python",
-    "content": "def get_user(user_id):\n    query = f\"SELECT * FROM users WHERE id = {user_id}\"\n    return db.execute(query)"
-  }'
-```
-
----
-
-## Deploy to GCP
-
-### 1. Initialize Infrastructure
-
-```bash
+# Set up your GCP credentials
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account.json"
 export PROJECT_ID="your-gcp-project-id"
-export REGION="us-central1"
-gcloud config set project $PROJECT_ID
 
-# Enable all 20 GCP products
-bash infra/deploy/setup.sh
-
-# Create Cloud SQL, Redis, Pub/Sub, Spanner
-bash infra/deploy/sql.sh
-bash infra/deploy/redis.sh
-bash infra/deploy/events.sh
-bash infra/deploy/secrets.sh
-bash infra/deploy/analytics.sh
+uvicorn main:app --reload --port 8000
 ```
 
-### 2. Terraform (optional — full IaC)
-
+**3. Start the Frontend (React):**
 ```bash
-cd infra/terraform
-terraform init
-terraform plan -var="project_id=$PROJECT_ID"
-terraform apply -var="project_id=$PROJECT_ID"
+cd frontend
+npm install
+npm run dev
 ```
 
-### 3. Build & Deploy via Cloud Build
-
-```bash
-# Configure Artifact Registry
-gcloud artifacts repositories create bhramari-repo \
-  --repository-format=docker \
-  --location=$REGION --project=$PROJECT_ID
-
-# Trigger CI/CD pipeline
-gcloud builds submit --config=cloudbuild.yaml \
-  --substitutions=_REGION=$REGION,_PROJECT_ID=$PROJECT_ID
-```
-
-### 4. Manual Deploy (faster for hackathon)
-
-```bash
-# Build multi-stage Docker image
-docker build -t gcr.io/$PROJECT_ID/bhramari-api:latest .
-gcloud auth configure-docker
-docker push gcr.io/$PROJECT_ID/bhramari-api:latest
-
-# Deploy to Cloud Run
-gcloud run deploy bhramari-api \
-  --image gcr.io/$PROJECT_ID/bhramari-api:latest \
-  --platform managed \
-  --region $REGION \
-  --allow-unauthenticated \
-  --set-env-vars DATABASE_URL="postgresql://postgres:YOUR_PASS@/${INSTANCE_CONN}/bhramari",\
-REDIS_URL="rediss://${REDIS_HOST}:${REDIS_PORT}",GOOGLE_CLOUD_PROJECT=$PROJECT_ID
-```
+### The Output Loop
+1. Upload code.
+2. Speak your context prompt.
+3. Initiate the Swarm.
+4. Review the **Gap Analysis Dashboard**.
+5. Download the **IDE-ready Markdown Report** to drag directly into Cursor / GitHub Copilot for an autonomous fix loop.
 
 ---
 
-## Design System — Astryx Theme
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--amber` | `#f59e0b` | Primary accent, CTAs, honeycomb grid |
-| `--cyan` | `#06b6d4` | Secondary accent, agent labels |
-| `--purple` | `#8b5cf6` | Tertiary accent, Colony tab |
-| `--bg-dark` | `#0a0a0f` | Page background |
-| `--bg-surface` | `#12121a` | Card backgrounds |
-| `glass` | `rgba(255,255,255,0.03)` + `blur(20px)` | All card surfaces |
-| `neon-text` | `linear-gradient(135deg, amber→cyan→purple)` | Headlines, logo |
-
-**Micro-interactions:**
-- `swarm-pulse` — pulsing opacity/scale on active nodes
-- `finding-slide-in` — spring-animated card entry from right
-- `agent-active` — concentric ring pulse on live agent dots
-- `shimmer` — loading skeleton gradient sweep
-
----
-
-## 20 GCP Products Used
-
-| # | Product | Role |
-|---|---------|------|
-| 1 | **Cloud Run** | Auto-scaling serverless containers (backend + future PWA) |
-| 2 | **Vertex AI** | Multi-agent reasoning pipeline (Gemini-powered swarm) |
-| 3 | **Google ADK** | Voice action integration hooks |
-| 4 | **Cloud Translation** | Real-time 50+ language translation |
-| 5 | **Speech-to-Text** | Vernacular voice prompt transcription |
-| 6 | **Text-to-Speech** | Natural voice synthesis for narration |
-| 7 | **Cloud SQL (PostgreSQL)** | Relational DB — users, submissions, findings |
-| 8 | **Firestore** | Real-time sync for live UI (future) |
-| 9 | **Memorystore (Redis)** | High-speed cache for pattern matching |
-| 10 | **Pub/Sub** | Event bus coordinating swarm agents |
-| 11 | **Cloud Tasks** | Async execution for long-running calculations |
-| 12 | **Spanner** | Globally consistent leaderboard store |
-| 13 | **BigQuery** | Analytics and cross-sectional trend analysis |
-| 14 | **Cloud Armor** | Edge WAF filtering injection vectors |
-| 15 | **Cloud CDN** | Ultra-low latency edge caching for React bundle |
-| 16 | **Secret Manager** | Zero-secret-store for JWT keys and DB passwords |
-| 17 | **Cloud Build** | Automated CI/CD pipeline |
-| 18 | **Artifact Registry** | Container image repository |
-| 19 | **Cloud Logging & Monitoring** | Live metric dashboards |
-| 20 | **Cloud Trace** | End-to-end latency tracing |
-
----
-
-## Key Technical Decisions
-
-1. **Single-page React 19 + Vite** — no build step complexity, hot reload, instant FE dev
-2. **FastAPI async backend** — native asyncio for SSE streaming without threading
-3. **Polling over raw SSE in JS** — simpler error handling; backend still streams via Server-Sent Events internally
-4. **SQLite for local dev → PostgreSQL on GCP** — auto-detected via `DATABASE_URL` env var
-5. **Redis optional** — gracefully degrades to no-cache if Memorystore unavailable
-6. **Zero secrets in env** — production uses Secret Manager with IAM-bound service account
-7. **Glassmorphism + Tailwind** — no custom CSS framework bloat, pure utility classes
-
----
-
-## File Reference
-
-| File | Purpose |
-|------|---------|
-| `frontend/src/App.tsx` | Root component — tab nav, state orchestration |
-| `frontend/src/components/Hero.tsx` | Code editor + agent indicators + submit button |
-| `frontend/src/components/SwarmStream.tsx` | Animated finding cards with severity coloring |
-| `frontend/src/components/ResultsPanel.tsx` | Score ring, strengths, growth tip, findings grid |
-| `frontend/src/components/VoicePanel.tsx` | Voice-first demo with waveform visualization |
-| `frontend/src/hooks/useSwarm.ts` | Polling hook with deduplication |
-| `infra/terraform/main.tf` | Full Terraform IaC for GCP stack |
-| `cloudbuild.yaml` | CI/CD: test → build → push → deploy |
-| `Dockerfile` | Multi-stage: Node builder → Python slim runtime |
-
----
-
-> **You don't need perfect. You need impressive.**
->
-> **Astryx UI** = glassmorphism + amber/cyan honeycomb grid + pulsing nodes
-> **Bhramari name** = Goddess of bees, synchronized hive intelligence
-> **20 GCP products** = you're showing the FULL Google Cloud stack
-> **Voice integration** = the killer demo differentiator
-
-Now go make the hive buzz. 🐝
+<div align="center">
+  <p>Built for the future of collaborative, intelligent engineering.</p>
+</div>
