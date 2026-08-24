@@ -1,5 +1,4 @@
 import { motion } from 'framer-motion'
-import { Hexagon, Warning, SealCheck } from '@phosphor-icons/react'
 import type { Submission } from '../types'
 
 interface HiveGapPanelProps {
@@ -36,7 +35,7 @@ export function HiveGapPanel({ lastResult }: HiveGapPanelProps) {
     >
       <div>
         <div className="flex items-center gap-2 mb-6">
-          <Hexagon size={24} weight="duotone" className="text-bespoke-accent" />
+          <span className="text-xl">🐝</span>
           <h3 className="font-bold text-bespoke-text text-base">Hive Mind Code Gap Monitor</h3>
         </div>
 
@@ -75,7 +74,6 @@ export function HiveGapPanel({ lastResult }: HiveGapPanelProps) {
                   className={`w-12 h-14 relative flex items-center justify-center border rounded-lg ${statusColor} ${i === 3 ? 'col-start-2' : ''}`}
                   title={`${domain.name}: click swarm to evaluate`}
                 >
-                  <Hexagon size={28} weight="duotone" className="absolute opacity-20" />
                   <span className="text-[10px] font-black">{domain.name.substring(0, 2).toUpperCase()}</span>
                   {pulseClass && (
                     <span className={`absolute w-2 h-2 rounded-full top-1 right-1 ${
@@ -98,7 +96,7 @@ export function HiveGapPanel({ lastResult }: HiveGapPanelProps) {
             <div className="space-y-2">
               {criticalGaps.slice(0, 2).map((gap, idx) => (
                 <div key={idx} className="flex gap-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900">
-                  <Warning size={16} weight="fill" className="text-red-500 shrink-0" />
+                  <span className="shrink-0 text-red-500">⚠️</span>
                   <div>
                     <span className="font-bold">Security Threat:</span> {gap.description}
                   </div>
@@ -107,7 +105,7 @@ export function HiveGapPanel({ lastResult }: HiveGapPanelProps) {
             </div>
           ) : lastResult ? (
             <div className="flex gap-2 p-2.5 rounded-xl bg-green-50 border border-green-200 text-xs text-green-900">
-              <SealCheck size={16} weight="fill" className="text-green-500 shrink-0" />
+              <span className="shrink-0 text-green-500">✅</span>
               <div>
                 <span className="font-bold">No Critical Gaps:</span> Code complies with Bhramari strict security parameters.
               </div>
@@ -120,7 +118,7 @@ export function HiveGapPanel({ lastResult }: HiveGapPanelProps) {
             <div className="space-y-2">
               {generalGaps.slice(0, 2).map((gap, idx) => (
                 <div key={idx} className="flex gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-                  <Warning size={16} weight="fill" className="text-amber-500 shrink-0" />
+                  <span className="shrink-0 text-amber-500">⚠️</span>
                   <div>
                     <span className="font-bold">{gap.agent_type.replace('_', ' ')} gap:</span> {gap.description}
                   </div>

@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
-import { Hexagon, Coin } from '@phosphor-icons/react'
 
 const TICKER_ITEMS = [
   'Catches SQL injection before it reaches prod',
@@ -30,70 +29,77 @@ export function Header() {
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="relative z-50 glass-strong border-b border-white/10"
+      className="relative z-50 glass-strong border-b border-white/10 flex flex-col items-center pt-8 pb-4"
     >
       {/* Top gradient line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
 
-      {/* Rolling Benefits Ticker */}
-      <div className="overflow-hidden border-b border-amber-500/10 bg-amber-500/5 py-2">
-        <motion.div
-          className="flex gap-12 whitespace-nowrap"
-          animate={{ x: ['0%', '-50%'] }}
-          transition={{
-            duration: 40,
-            ease: 'linear',
-            repeat: Infinity,
-          }}
-        >
-          {tickerContent.map((item, i) => (
-            <span key={i} className="flex items-center gap-3 text-xs text-amber-900 font-black tracking-wide shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0 animate-pulse" />
-              {item}
-            </span>
-          ))}
-        </motion.div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <motion.div
-            className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-cyan-500 flex items-center justify-center text-xl text-white"
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-          >
-            <Hexagon size={24} weight="fill" />
-          </motion.div>
-          <div>
-            <h1 className="text-xl font-black neon-text tracking-tight">Bhramari</h1>
-            <p className="text-[10px] text-gray-500 font-medium tracking-widest uppercase">
-              The Hive Mind
-            </p>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex items-center gap-2 text-sm">
-          {isLoggedIn && user && (
-            <div className="hidden sm:flex items-center gap-2 mr-4 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+      {/* Auth / Logout corner - absolute positioned to keep the rest centered */}
+      {isLoggedIn && (
+        <div className="absolute top-4 right-6 flex items-center gap-4 text-sm">
+          {user && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
               <div className="w-2 h-2 rounded-full bg-green-500 swarm-pulse" />
               <span className="text-gray-300 font-medium">{user.username}</span>
               <span className="text-amber-400 text-xs font-mono">Lvl {user.swarm_level}</span>
-              <span className="text-cyan-400 text-xs font-mono flex items-center gap-1">{user.nectar_points}<Coin size={14} weight="duotone" /></span>
+              <span className="text-cyan-400 text-xs font-mono">Pts {user.nectar_points}</span>
             </div>
           )}
+          <button
+            onClick={logout}
+            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-sm transition-all duration-200 font-medium"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
 
-          {isLoggedIn ? (
-            <button
-              onClick={logout}
-              className="ml-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-sm transition-all duration-200 font-medium"
-            >
-              Sign Out
-            </button>
-          ) : null}
-        </nav>
+      {/* Center Aligned Branding */}
+      <div className="flex flex-col items-center justify-center gap-2 w-full max-w-4xl px-4 text-center">
+        
+        {/* Beehive Icon with Bee */}
+        <motion.div
+          className="relative w-16 h-16 flex items-center justify-center mb-2"
+          animate={{ y: [0, -3, 0] }}
+          transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+        >
+          <div className="text-5xl">🍯</div>
+          <motion.div 
+            className="absolute -top-2 -right-2 text-2xl"
+            animate={{ 
+              x: [0, 5, -5, 0],
+              y: [0, -5, 5, 0],
+            }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+          >
+            🐝
+          </motion.div>
+        </motion.div>
+
+        {/* Wordmark */}
+        <h1 className="text-4xl font-black neon-text tracking-tight mb-4">Bhramari</h1>
+
+        {/* Rolling Tagline / Features */}
+        <div className="w-full overflow-hidden border-t border-b border-amber-500/20 bg-amber-500/5 py-2 mt-2 rounded-lg">
+          <motion.div
+            className="flex gap-12 whitespace-nowrap"
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{
+              duration: 40,
+              ease: 'linear',
+              repeat: Infinity,
+            }}
+          >
+            {tickerContent.map((item, i) => (
+              <span key={i} className="flex items-center gap-3 text-sm text-amber-800 font-black tracking-wide shrink-0">
+                <span className="text-lg">🐝</span>
+                {item}
+              </span>
+            ))}
+          </motion.div>
+        </div>
       </div>
+
     </motion.header>
   )
 }

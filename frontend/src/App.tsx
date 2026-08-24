@@ -10,7 +10,7 @@ import { ResultsPanel } from './components/ResultsPanel'
 import { GlassCard, SectionHeader } from './components/GlassCard'
 import { HealthIndicator } from './components/HealthIndicator'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TerminalWindow, UsersThree, Star, BookOpen, Bug, DownloadSimple, Warning, SealCheck, ChartBar, Globe } from '@phosphor-icons/react'
+
 
 type Language = 'python' | 'javascript' | 'go' | 'rust' | 'java'
 
@@ -110,7 +110,7 @@ export default function App() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 pb-20">
         {/* Tab Navigation */}
-        <div className="flex gap-1 mt-6 mb-8 p-1 rounded-xl bg-bespoke-surface border border-bespoke-border w-fit">
+        <div className="flex gap-1 mt-6 mb-8 p-1 rounded-xl bg-bespoke-surface border border-bespoke-border w-fit mx-auto">
           <button
             aria-label="Code Review Tab"
             onClick={() => setActiveTab('review')}
@@ -120,7 +120,7 @@ export default function App() {
                 : 'text-bespoke-muted hover:text-bespoke-text'
             }`}
           >
-            <TerminalWindow size={18} weight="bold" /> Code Review
+            Code Review
           </button>
           <button
             aria-label="Colony Tab"
@@ -131,7 +131,7 @@ export default function App() {
                 : 'text-bespoke-muted hover:text-bespoke-text'
             }`}
           >
-            <UsersThree size={18} weight="bold" /> Colony
+            Colony
           </button>
         </div>
 
@@ -194,7 +194,7 @@ export default function App() {
               {/* Colony Gap Dashboard */}
               <GlassCard glow="purple" className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <SectionHeader icon={<ChartBar size={20} />} title="Gap Analysis Dashboard" />
+                  <SectionHeader icon="" title="Gap Analysis Dashboard" />
                   {lastResult && (
                     <button
                       onClick={() => {
@@ -234,14 +234,14 @@ export default function App() {
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bespoke-accent/10 border border-bespoke-accent/30 text-bespoke-accent text-xs font-semibold hover:bg-bespoke-accent/20 transition-colors"
                     >
-                      <DownloadSimple size={14} weight="bold" /> Download Report
+                      Download Report
                     </button>
                   )}
                 </div>
 
                 {!lastResult ? (
                   <div className="flex flex-col items-center justify-center flex-grow py-12 text-bespoke-muted">
-                    <Bug size={36} weight="duotone" className="mb-3 text-bespoke-accent opacity-40" />
+                    <p className="text-3xl mb-3 opacity-40">🐝</p>
                     <p className="text-sm font-medium">No analysis yet</p>
                     <p className="text-xs mt-1">Paste code and run Summon the Swarm to see your gap dashboard here.</p>
                   </div>
@@ -285,7 +285,7 @@ export default function App() {
                     <div className="space-y-2 overflow-y-auto max-h-60 pr-1">
                       {(lastResult.findings?.length ?? 0) === 0 ? (
                         <div className="flex gap-2 p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-800">
-                          <SealCheck size={16} weight="fill" className="text-green-500 shrink-0 mt-0.5" />
+                          <span className="text-green-500 shrink-0 mt-0.5">✅</span>
                           <span><strong>No Issues Found</strong> — Code passes all Bhramari security and quality parameters.</span>
                         </div>
                       ) : (
@@ -298,9 +298,9 @@ export default function App() {
                               f.severity === 'medium' ? 'bg-yellow-50 border-yellow-200 text-yellow-900' :
                               'bg-gray-50 border-gray-200 text-gray-700'
                             }`}>
-                              <Warning size={15} weight="fill" className={`shrink-0 mt-0.5 ${
+                              <span className={`shrink-0 mt-0.5 ${
                                 isRed ? 'text-red-500' : 'text-yellow-500'
-                              }`} />
+                              }`}>⚠️</span>
                               <div>
                                 <span className="font-bold">[{f.severity?.toUpperCase()}] {f.agent_type?.replace('_', ' ')}:</span>{' '}
                                 {f.description}
@@ -333,28 +333,28 @@ export default function App() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <Star size={24} weight="duotone" className="text-bespoke-accent" />
+              <span className="text-2xl text-bespoke-accent">⭐</span>
               <h3 className="text-sm font-bold text-bespoke-text">Standardized Quality Rating</h3>
               <p className="text-sm text-bespoke-muted leading-relaxed">
                 Every submission is evaluated by our core engine to generate a standardized code quality rating on a scale of 1 to 10.
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <BookOpen size={24} weight="duotone" className="text-bespoke-accent" />
+              <span className="text-2xl text-bespoke-accent">📖</span>
               <h3 className="text-sm font-bold text-bespoke-text">Historical Learning</h3>
               <p className="text-sm text-bespoke-muted leading-relaxed">
                 Maintains a robust session history, learning from past review data to track development growth and optimization patterns over time.
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <Globe size={24} weight="duotone" className="text-bespoke-accent" />
+              <span className="text-2xl text-bespoke-accent">🌍</span>
               <h3 className="text-sm font-bold text-bespoke-text">Multi-Language Support</h3>
               <p className="text-sm text-bespoke-muted leading-relaxed">
                 Native support for translation of findings into global and regional languages including Hindi, Tamil, Bengali, and Marathi.
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <Bug size={24} weight="duotone" className="text-bespoke-accent" />
+              <span className="text-2xl text-bespoke-accent">🐝</span>
               <h3 className="text-sm font-bold text-bespoke-text">Comprehensive Bug Reports</h3>
               <p className="text-sm text-bespoke-muted leading-relaxed">
                 Detects security flaws, inefficient logic, styling inconsistencies, and architectural anti-patterns with actionable fixes.
